@@ -1,0 +1,24 @@
+# Binaries
+cargo-go
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test files
+sample.png
+*.test
+
+# Go workspace file
+go.work
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
