@@ -47,6 +47,11 @@ func describeImage(path string) (string, error) {
 	width := bounds.Max.X - bounds.Min.X
 	height := bounds.Max.Y - bounds.Min.Y
 
+	// Check for invalid dimensions
+	if width <= 0 || height <= 0 {
+		return "", fmt.Errorf("invalid image dimensions: %dx%d", width, height)
+	}
+
 	// Analyze image properties
 	aspectRatio := float64(width) / float64(height)
 	orientation := getOrientation(aspectRatio)
