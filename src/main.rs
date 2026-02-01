@@ -68,7 +68,8 @@ fn detect_format(path: &PathBuf) -> Result<ImageFormat, Box<dyn std::error::Erro
         Some("gif") => Ok(ImageFormat::Gif),
         Some("bmp") => Ok(ImageFormat::Bmp),
         Some("webp") => Ok(ImageFormat::WebP),
-        _ => Ok(ImageFormat::Png), // Default
+        Some(ext) => Err(format!("Unsupported image format: .{}", ext).into()),
+        None => Err("Could not determine file extension".into()),
     }
 }
 

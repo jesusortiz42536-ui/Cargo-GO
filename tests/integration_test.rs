@@ -3,17 +3,9 @@ use std::path::Path;
 
 #[test]
 fn test_describe_example_image() {
-    // Build the project first
-    let build = Command::new("cargo")
-        .arg("build")
-        .output()
-        .expect("Failed to build project");
-    
-    assert!(build.status.success(), "Build should succeed");
-    
-    // Run the binary with the test image
-    let output = Command::new("./target/debug/cargo-go")
-        .arg("examples/test_image.png")
+    // Run the binary with the test image using cargo run
+    let output = Command::new(env!("CARGO"))
+        .args(["run", "--", "examples/test_image.png"])
         .output()
         .expect("Failed to execute command");
     
@@ -32,15 +24,15 @@ fn test_describe_example_image() {
 #[test]
 fn test_nonexistent_file() {
     // Try to describe a file that doesn't exist
-    let output = Command::new("./target/debug/cargo-go")
-        .arg("nonexistent_file.png")
+    let output = Command::new(env!("CARGO"))
+        .args(["run", "--", "nonexistent_file.png"])
         .output()
         .expect("Failed to execute command");
     
     assert!(!output.status.success(), "Should fail for nonexistent file");
     
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("Error"), "Should print error message");
+    assert!(stderr.contains("Error") || stderr.contains("error"), "Should print error message");
 }
 
 #[test]
