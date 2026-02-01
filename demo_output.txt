@@ -1,0 +1,34 @@
+# Cargo-GO Image Description Tool - Demo Output
+
+## Build the application
+$ go build -o cargo-go
+
+## Show help message
+$ ./cargo-go
+Usage: cargo-go <image-file>
+Example: cargo-go image.jpg
+
+## Describe a sample image
+$ ./cargo-go sample.png
+Image Description:
+  Filename: sample.png
+  Format: png
+  Dimensions: 800x600 pixels
+  Orientation: Landscape
+  Aspect Ratio: 1.33:1
+  File Size: 2.7 KB
+
+## Run tests
+$ go test -v
+=== RUN   TestDescribeImage
+--- PASS: TestDescribeImage (0.02s)
+=== RUN   TestDescribeImageNonExistent
+--- PASS: TestDescribeImageNonExistent (0.00s)
+=== RUN   TestDescribeImageInvalidDimensions
+--- PASS: TestDescribeImageInvalidDimensions (0.00s)
+=== RUN   TestGetOrientation
+--- PASS: TestGetOrientation (0.00s)
+=== RUN   TestFormatFileSize
+--- PASS: TestFormatFileSize (0.00s)
+PASS
+ok      github.com/jesusortiz42536-ui/Cargo-GO  0.024s
