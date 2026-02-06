@@ -752,7 +752,25 @@ class _MainAppState extends State<MainApp> {
   // ═══ DASHBOARD ═══
   Widget _dashScreen() {
     final allNegs = [...negHidalgo, ...negCdmx];
+    final sEntregas = _online ? '${_apiStats['envios_hoy'] ?? 0}' : '47';
+    final sIngresos = _online ? '\$${((_apiStats['ingresos_hoy'] ?? 0) / 1000).toStringAsFixed(1)}k' : '\$98.2k';
+    final sProductos = _online ? '${_apiFarmProductos.length}+' : '77K+';
+    final sNegocios = _online ? '${_apiNegocios.isNotEmpty ? _apiNegocios.length : allNegs.length}' : '${allNegs.length}';
+
     return ListView(padding: const EdgeInsets.all(14), children: [
+      // Connection indicator
+      GestureDetector(onTap: _loadApiData,
+        child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
+            color: _online ? AppTheme.gr.withOpacity(0.1) : AppTheme.rd.withOpacity(0.1)),
+          child: Row(children: [
+            Icon(_online ? Icons.cloud_done : Icons.cloud_off, size: 14, color: _online ? AppTheme.gr : AppTheme.rd),
+            const SizedBox(width: 6),
+            Text(_online ? 'Conectado a Cargo-GO API' : 'Sin conexión · Datos locales', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: _online ? AppTheme.gr : AppTheme.rd)),
+            const Spacer(),
+            if (_loadingApi) SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5, color: _online ? AppTheme.gr : AppTheme.rd))
+            else Icon(Icons.refresh, size: 14, color: _online ? AppTheme.gr : AppTheme.rd),
+          ]))),
       // Saturnos + Quick menus
       GestureDetector(onTap: () => setState(() => _menuScreen = 'farmacia'),
         child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
@@ -768,10 +786,10 @@ class _MainAppState extends State<MainApp> {
       const SizedBox(height: 12),
       // Stats
       Row(children: [
-        _stat('Entregas', '47', Icons.local_shipping, AppTheme.ac),
-        _stat('Ingresos', '\$98.2k', Icons.trending_up, AppTheme.gr),
-        _stat('Productos', '77K+', Icons.medication, AppTheme.tl),
-        _stat('Negocios', '${allNegs.length}', Icons.store, AppTheme.or),
+        _stat('Entregas', sEntregas, Icons.local_shipping, AppTheme.ac),
+        _stat('Ingresos', sIngresos, Icons.trending_up, AppTheme.gr),
+        _stat('Productos', sProductos, Icons.medication, AppTheme.tl),
+        _stat('Negocios', sNegocios, Icons.store, AppTheme.or),
       ]),
       const SizedBox(height: 12),
       // Quick access menus
@@ -920,9 +938,15 @@ class _MainAppState extends State<MainApp> {
 
   // ═══ FARMACIA ═══
   Widget _farmScreen() {
+    final useApi = _online && _apiFarmProductos.isNotEmpty;
+
     return Scaffold(backgroundColor: AppTheme.bg,
       appBar: AppBar(backgroundColor: AppTheme.sf, leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() => _menuScreen = null)),
-        title: const Text('💊 Farmacias Madrid', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700))),
+        title: Text(useApi ? '💊 Farmacias Madrid (${_apiFarmProductos.length})' : '💊 Farmacias Madrid', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+        actions: [
+          if (_online) Padding(padding: const EdgeInsets.only(right: 8),
+            child: Icon(Icons.cloud_done, size: 16, color: AppTheme.gr)),
+        ]),
       body: ListView(padding: const EdgeInsets.all(12), children: [
         // Saturnos banner
         Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
