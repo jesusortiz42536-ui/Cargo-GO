@@ -515,8 +515,7 @@ class _MainAppState extends State<MainApp> {
   @override
   void initState() {
     super.initState();
-    // Load API data after first frame to avoid crash
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadApiData());
+    // API data loads when user taps connection indicator, not on startup
   }
 
   Future<void> _loadApiData() async {

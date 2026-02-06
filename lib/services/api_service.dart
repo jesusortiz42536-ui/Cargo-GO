@@ -1,33 +1,25 @@
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-
-/// HTTP client sin dependencias externas - usa dart:io en mobile
-import 'dart:io';
+import 'package:http/http.dart' as http;
 
 class ApiService {
-  // En emulador Android, 10.0.2.2 apunta al localhost de la PC host
   static String _baseUrl = 'http://192.168.0.103:5000';
 
   static String get baseUrl => _baseUrl;
   static set baseUrl(String url) => _baseUrl = url.replaceAll(RegExp(r'/$'), '');
 
-  static final HttpClient _client = HttpClient()
-    ..connectionTimeout = const Duration(seconds: 10);
-
   // ═══ HTTP HELPER ═══
   static Future<Map<String, dynamic>?> _get(String endpoint) async {
     try {
       final uri = Uri.parse('$_baseUrl$endpoint');
-      final request = await _client.getUrl(uri);
-      final response = await request.close();
-      final body = await response.transform(utf8.decoder).join();
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
-        final decoded = json.decode(body);
+        final decoded = json.decode(response.body);
         if (decoded is List) return {'data': decoded};
         return decoded as Map<String, dynamic>;
       }
-      return {'error': 'HTTP ${response.statusCode}', 'body': body};
+      return {'error': 'HTTP ${response.statusCode}', 'body': response.body};
     } catch (e) {
       debugPrint('[API] GET $endpoint error: $e');
       return null;
@@ -37,12 +29,12 @@ class ApiService {
   static Future<Map<String, dynamic>?> _post(String endpoint, Map<String, dynamic> body) async {
     try {
       final uri = Uri.parse('$_baseUrl$endpoint');
-      final request = await _client.postUrl(uri);
-      request.headers.contentType = ContentType.json;
-      request.write(json.encode(body));
-      final response = await request.close();
-      final responseBody = await response.transform(utf8.decoder).join();
-      final decoded = json.decode(responseBody);
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 10));
+      final decoded = json.decode(response.body);
       if (decoded is List) return {'data': decoded};
       return decoded as Map<String, dynamic>;
     } catch (e) {
@@ -54,12 +46,12 @@ class ApiService {
   static Future<Map<String, dynamic>?> _put(String endpoint, Map<String, dynamic> body) async {
     try {
       final uri = Uri.parse('$_baseUrl$endpoint');
-      final request = await _client.openUrl('PUT', uri);
-      request.headers.contentType = ContentType.json;
-      request.write(json.encode(body));
-      final response = await request.close();
-      final responseBody = await response.transform(utf8.decoder).join();
-      return json.decode(responseBody) as Map<String, dynamic>;
+      final response = await http.put(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 10));
+      return json.decode(response.body) as Map<String, dynamic>;
     } catch (e) {
       debugPrint('[API] PUT $endpoint error: $e');
       return null;
