@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#001A4D">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Cargo-GO Repartidores</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root {
+            --azul-oscuro: #001A4D;
+            --azul-medio: #0D47A1;
+            --azul-claro: #1565C0;
+            --naranja: #FF8F00;
+            --naranja-claro: #FFA726;
+            --verde: #10B981;
+            --verde-oscuro: #059669;
+            --rojo: #EF4444;
+            --amarillo: #F59E0B;
+            --gris-fondo: #F1F5F9;
+            --gris-texto: #64748B;
+            --gris-borde: #E2E8F0;
+            --blanco: #FFFFFF;
+            --sombra: 0 4px 16px rgba(0,26,77,0.10);
+            --sombra-lg: 0 8px 32px rgba(0,26,77,0.15);
+            --radius: 16px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Nunito', 'Segoe UI', sans-serif;
+            background: var(--gris-fondo);
+            color: #1E293B;
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            background: linear-gradient(135deg, var(--azul-oscuro), var(--azul-claro));
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,26,77,0.3);
+        }
+        .header-left h1 {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+        }
+        .header-left h1 span { color: var(--naranja-claro); }
+        .header-left .subtitle {
+            font-size: 11px;
+            opacity: 0.7;
+            font-weight: 600;
+        }
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        .status-badge {
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .status-badge.online { background: var(--verde); }
+        .status-badge.offline { background: var(--rojo); }
+        .btn-refresh {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .btn-refresh:active { background: rgba(255,255,255,0.3); }
+        .btn-refresh.spinning i { animation: spin 0.6s ease; }
+
+        /* ===== DRIVER INFO BAR ===== */
+        .driver-bar {
+            background: linear-gradient(135deg, var(--azul-medio), var(--azul-oscuro));
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .driver-avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--naranja);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 900;
+        }
+        .driver-info { flex: 1; }
+        .driver-info .name { font-weight: 800; font-size: 14px; }
+        .driver-info .moto { font-size: 11px; opacity: 0.7; }
+        .driver-status-toggle {
+            background: var(--verde);
+            border: none;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        .driver-status-toggle.inactivo { background: var(--gris-texto); }
+
+        /* ===== STATS ===== */
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 10px;
+            padding: 16px;
+        }
+        .stat-card {
+            background: var(--blanco);
+            border-radius: var(--radius);
+            padding: 14px 10px;
+            text-align: center;
+            box-shadow: var(--sombra);
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            border-radius: 0 0 var(--radius) var(--radius);
+        }
+        .stat-card.blue::after { background: var(--azul-claro); }
+        .stat-card.green::after { background: var(--verde); }
+        .stat-card.orange::after { background: var(--naranja); }
+        .stat-card.money::after { background: var(--verde-oscuro); }
+        .stat-number {
+            font-size: 26px;
+            font-weight: 900;
+            color: var(--azul-oscuro);
+            line-height: 1;
+        }
+        .stat-card.green .stat-number { color: var(--verde); }
+        .stat-card.orange .stat-number { color: var(--naranja); }
+        .stat-card.money .stat-number { color: var(--verde-oscuro); font-size: 20px; }
+        .stat-label {
+            font-size: 9px;
+            color: var(--gris-texto);
+            text-transform: uppercase;
+            font-weight: 800;
+            margin-top: 4px;
+            letter-spacing: 0.3px;
+        }
+
+        /* ===== TABS ===== */
+        .tabs {
+            display: flex;
+            background: var(--blanco);
+            border-bottom: 2px solid var(--gris-borde);
+            position: sticky;
+            top: 56px;
+            z-index: 99;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 14px 8px;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--gris-texto);
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            position: relative;
+        }
+        .tab.active {
+            color: var(--azul-oscuro);
+            border-bottom-color: var(--naranja);
+        }
+        .tab .badge {
+            position: absolute;
+            top: 6px;
+            right: calc(50% - 24px);
+            background: var(--rojo);
+            color: white;
+            font-size: 9px;
+            font-weight: 900;
+            padding: 1px 6px;
+            border-radius: 10px;
+            min-width: 16px;
+        }
+
+        /* ===== ENTREGAS LIST ===== */
+        .entregas-list { padding: 12px 16px; }
+        .entrega-card {
+            background: var(--blanco);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: var(--sombra);
+            border-left: 5px solid var(--azul-claro);
+            transition: transform 0.15s;
+            animation: slideUp 0.3s ease-out both;
+        }
+        .entrega-card:active { transform: scale(0.98); }
+        .entrega-card.en-camino { border-left-color: var(--naranja); }
+        .entrega-card.entregado { border-left-color: var(--verde); opacity: 0.8; }
+        .entrega-card.cancelado { border-left-color: var(--rojo); opacity: 0.5; }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .entrega-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .entrega-id {
+            font-weight: 900;
+            color: var(--azul-oscuro);
+            font-size: 15px;
+        }
+        .entrega-estado {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .estado-pendiente { background: #DBEAFE; color: #1E40AF; }
+        .estado-en-camino { background: #FEF3C7; color: #92400E; }
+        .estado-entregado { background: #D1FAE5; color: #065F46; }
+
+        .entrega-cliente {
+            font-size: 16px;
+            font-weight: 800;
+            margin-bottom: 4px;
+            color: #0F172A;
+        }
+        .entrega-direccion {
+            font-size: 13px;
+            color: var(--gris-texto);
+            margin-bottom: 3px;
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+        }
+        .entrega-direccion i { margin-top: 2px; font-size: 11px; color: var(--azul-claro); }
+
+        .entrega-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--gris-texto);
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--gris-borde);
+        }
+        .entrega-meta .metodo {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .entrega-meta .metodo i { color: var(--naranja); }
+        .entrega-monto {
+            font-weight: 900;
+            color: var(--verde-oscuro);
+            font-size: 18px;
+        }
+        .cambio-warning {
+            font-size: 11px;
+            color: var(--naranja);
+            font-weight: 700;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* ===== ACTION BUTTONS ===== */
+        .actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .btn {
+            flex: 1;
+            padding: 11px;
+            border: none;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            letter-spacing: 0.3px;
+        }
+        .btn:active { transform: scale(0.95); }
+        .btn-iniciar {
+            background: linear-gradient(135deg, var(--naranja), var(--naranja-claro));
+            color: white;
+            box-shadow: 0 4px 12px rgba(255,143,0,0.3);
+        }
+        .btn-completar {
+            background: linear-gradient(135deg, var(--verde-oscuro), var(--verde));
+            color: white;
+            box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+        }
+        .btn-llamar {
+            background: linear-gradient(135deg, #2563EB, #3B82F6);
+            color: white;
+        }
+        .btn-whatsapp {
+            background: linear-gradient(135deg, #128C7E, #25D366);
+            color: white;
+        }
+        .btn-mapa {
+            background: linear-gradient(135deg, #475569, #64748B);
+            color: white;
+        }
+
+        /* ===== CONFIG ===== */
+        .config-section { padding: 16px; }
+        .config-card {
+            background: var(--blanco);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: var(--sombra);
+        }
+        .config-card label {
+            font-size: 11px;
+            color: var(--gris-texto);
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.3px;
+            display: block;
+            margin-bottom: 6px;
+        }
+        .config-card input, .config-card select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--gris-borde);
+            border-radius: 12px;
+            font-size: 14px;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 600;
+            transition: border-color 0.2s;
+        }
+        .config-card input:focus, .config-card select:focus {
+            outline: none;
+            border-color: var(--azul-claro);
+        }
+        .btn-guardar {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--azul-oscuro), var(--azul-claro));
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 15px;
+            font-weight: 900;
+            cursor: pointer;
+            margin-top: 12px;
+            letter-spacing: 0.5px;
+            box-shadow: var(--sombra-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-guardar:active { transform: scale(0.98); }
+        .btn-guardar.verde {
+            background: linear-gradient(135deg, var(--verde-oscuro), var(--verde));
+        }
+
+        /* ===== EMPTY STATE ===== */
+        .empty {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--gris-texto);
+        }
+        .empty .icon {
+            font-size: 56px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+        .empty p { font-weight: 600; font-size: 14px; }
+
+        /* ===== LOADING ===== */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--gris-texto);
+        }
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 4px solid var(--gris-borde);
+            border-top-color: var(--azul-claro);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        /* ===== TOAST ===== */
+        .toast {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--azul-oscuro);
+            color: white;
+            padding: 14px 24px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            box-shadow: var(--sombra-lg);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .toast.success { background: var(--verde-oscuro); }
+        .toast.error { background: var(--rojo); }
+
+        /* ===== BOTTOM NAV ===== */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--blanco);
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+            z-index: 100;
+        }
+        .nav-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            background: none;
+            border: none;
+            color: var(--gris-texto);
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 4px 12px;
+            transition: color 0.2s;
+        }
+        .nav-btn i { font-size: 20px; }
+        .nav-btn.active { color: var(--azul-oscuro); }
+        .nav-btn.active i { color: var(--naranja); }
+
+        /* ===== RESPONSIVE ===== */
+        @media (min-width: 500px) {
+            body { max-width: 430px; margin: 0 auto; }
+            .bottom-nav { max-width: 430px; left: 50%; transform: translateX(-50%); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <h1>Cargo<span>-GO</span></h1>
+            <div class="subtitle">Panel de Repartidor</div>
+        </div>
+        <div class="header-right">
+            <button class="btn-refresh" onclick="refreshAll()" id="btnRefresh">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <div class="status-badge online" id="statusBadge">EN LINEA</div>
+        </div>
+    </div>
+
+    <!-- Driver Info -->
+    <div class="driver-bar" id="driverBar">
+        <div class="driver-avatar" id="driverAvatar">?</div>
+        <div class="driver-info">
+            <div class="name" id="driverName">Cargando...</div>
+            <div class="moto" id="driverMoto">---</div>
+        </div>
+        <button class="driver-status-toggle" id="driverToggle" onclick="toggleDisponible()">
+            DISPONIBLE
+        </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats">
+        <div class="stat-card blue">
+            <div class="stat-number" id="statTotal">0</div>
+            <div class="stat-label">Hoy</div>
+        </div>
+        <div class="stat-card green">
+            <div class="stat-number" id="statCompletadas">0</div>
+            <div class="stat-label">Entregadas</div>
+        </div>
+        <div class="stat-card orange">
+            <div class="stat-number" id="statPendientes">0</div>
+            <div class="stat-label">Pendientes</div>
+        </div>
+        <div class="stat-card money">
+            <div class="stat-number" id="statMonto">$0</div>
+            <div class="stat-label">Cobrado</div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <div class="tab active" data-tab="pendientes" onclick="cambiarTab('pendientes', this)">
+            <i class="fas fa-clock"></i> Pendientes
+            <span class="badge" id="badgePendientes" style="display:none">0</span>
+        </div>
+        <div class="tab" data-tab="en-camino" onclick="cambiarTab('en-camino', this)">
+            <i class="fas fa-motorcycle"></i> En Ruta
+        </div>
+        <div class="tab" data-tab="completadas" onclick="cambiarTab('completadas', this)">
+            <i class="fas fa-check-circle"></i> Listas
+        </div>
+        <div class="tab" data-tab="config" onclick="cambiarTab('config', this)">
+            <i class="fas fa-cog"></i>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div id="content">
+        <div class="loading">
+            <div class="spinner"></div>
+            <div>Cargando entregas...</div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav">
+        <button class="nav-btn active" onclick="cambiarTab('pendientes', document.querySelector('[data-tab=pendientes]'))">
+            <i class="fas fa-inbox"></i>
+            Entregas
+        </button>
+        <button class="nav-btn" onclick="cambiarTab('en-camino', document.querySelector('[data-tab=en-camino]'))">
+            <i class="fas fa-route"></i>
+            En Ruta
+        </button>
+        <button class="nav-btn" onclick="cambiarTab('completadas', document.querySelector('[data-tab=completadas]'))">
+            <i class="fas fa-check-double"></i>
+            Historial
+        </button>
+        <button class="nav-btn" onclick="cambiarTab('config', document.querySelector('[data-tab=config]'))">
+            <i class="fas fa-user-cog"></i>
+            Perfil
+        </button>
+    </nav>
+
+    <script>
+        // ═══════════ CONFIGURACION ═══════════
+        const CONFIG_KEY = 'cargo_go_repartidor_config';
+        let config = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}');
+        let API_URL = config.apiUrl || 'http://localhost:5000';
+        let REPARTIDOR_ID = config.repartidorId || 1;
+        let currentTab = 'pendientes';
+        let entregas = [];
+        let driverInfo = null;
+
+        // ═══════════ API ═══════════
+        async function fetchAPI(endpoint, options = {}) {
+            try {
+                const res = await fetch(`${API_URL}${endpoint}`, {
+                    ...options,
+                    headers: { 'Content-Type': 'application/json', ...options.headers }
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    return { ok: false, error: err.error || 'Error del servidor' };
+                }
+                return await res.json();
+            } catch (e) {
+                console.error('API Error:', e);
+                updateOnlineStatus(false);
+                return null;
+            }
+        }
+
+        // ═══════════ CARGAR DATOS ═══════════
+        async function cargarEntregas() {
+            const data = await fetchAPI(`/api/entregas?repartidor_id=${REPARTIDOR_ID}`);
+            if (data && data.ok) {
+                entregas = data.entregas;
+                updateOnlineStatus(true);
+                localStorage.setItem('cgo_entregas_cache', JSON.stringify(entregas));
+                renderTab();
+                updateBadges();
+            } else {
+                const cached = localStorage.getItem('cgo_entregas_cache');
+                if (cached) {
+                    entregas = JSON.parse(cached);
+                    renderTab();
+                    updateBadges();
+                }
+            }
+        }
+
+        async function cargarStats() {
+            const data = await fetchAPI(`/api/stats/${REPARTIDOR_ID}`);
+            if (data && data.ok) {
+                const s = data.stats;
+                animateNumber('statCompletadas', s.entregas_hoy || 0);
+                animateNumber('statPendientes', s.pendientes || 0);
+                document.getElementById('statTotal').textContent = (s.entregas_hoy || 0) + (s.pendientes || 0);
+                document.getElementById('statMonto').textContent = '$' + (s.monto_cobrado_hoy || 0).toLocaleString('es-MX');
+            }
+        }
+
+        async function cargarDriverInfo() {
+            const data = await fetchAPI(`/api/repartidor/${REPARTIDOR_ID}`);
+            if (data && data.ok) {
+                driverInfo = data.repartidor;
+                const nombre = driverInfo.nombre || 'Repartidor';
+                document.getElementById('driverName').textContent = nombre;
+                document.getElementById('driverAvatar').textContent = nombre.charAt(0).toUpperCase();
+                document.getElementById('driverMoto').textContent =
+                    driverInfo.num_moto ? `Moto: ${driverInfo.num_moto}` : 'Sin vehiculo asignado';
+
+                const toggle = document.getElementById('driverToggle');
+                if (driverInfo.activo) {
+                    toggle.textContent = 'DISPONIBLE';
+                    toggle.classList.remove('inactivo');
+                } else {
+                    toggle.textContent = 'INACTIVO';
+                    toggle.classList.add('inactivo');
+                }
+            }
+        }
+
+        // ═══════════ ACCIONES ═══════════
+        async function iniciarEntrega(id) {
+            if (!confirm('Iniciar entrega? Se marcara la hora de salida.')) return;
+
+            const data = await fetchAPI(`/api/entregas/${id}/iniciar`, { method: 'POST' });
+            if (data && data.ok) {
+                showToast('En camino! Hora salida: ' + data.hora_salida, 'success');
+                refreshAll();
+            } else {
+                showToast(data ? data.error : 'Error de conexion', 'error');
+            }
+        }
+
+        async function completarEntrega(id) {
+            const notas = prompt('Notas de entrega (opcional):') || '';
+            const data = await fetchAPI(`/api/entregas/${id}/completar`, {
+                method: 'POST',
+                body: JSON.stringify({ notas })
+            });
+            if (data && data.ok) {
+                showToast('Entrega completada!', 'success');
+                refreshAll();
+            } else {
+                showToast(data ? data.error : 'Error de conexion', 'error');
+            }
+        }
+
+        function llamarCliente(telefono) {
+            if (telefono) window.location.href = `tel:${telefono}`;
+            else showToast('Sin telefono registrado', 'error');
+        }
+
+        function whatsappCliente(telefono, cliente, id) {
+            if (!telefono) { showToast('Sin telefono', 'error'); return; }
+            const msg = encodeURIComponent(
+                `Hola ${cliente || ''}, soy tu repartidor de Cargo-GO. ` +
+                `Voy en camino con tu entrega #${id}. Cualquier indicacion, me avisas!`
+            );
+            const tel = telefono.replace(/\D/g, '');
+            window.open(`https://wa.me/52${tel}?text=${msg}`, '_blank');
+        }
+
+        function abrirMapa(direccion) {
+            if (!direccion) { showToast('Sin direccion', 'error'); return; }
+            const encoded = encodeURIComponent(direccion + ', Tulancingo, Hidalgo');
+            window.open(`https://maps.google.com/maps?q=${encoded}`, '_blank');
+        }
+
+        function toggleDisponible() {
+            showToast('Funcion proximamente', 'info');
+        }
+
+        // ═══════════ RENDER ═══════════
+        function renderTab() {
+            const content = document.getElementById('content');
+
+            if (currentTab === 'config') {
+                renderConfig(content);
+                return;
+            }
+
+            const estadoMap = {
+                'pendientes': ['PENDIENTE', 'ASIGNADO'],
+                'en-camino': ['EN CAMINO'],
+                'completadas': ['ENTREGADO']
+            };
+
+            const estados = estadoMap[currentTab] || ['PENDIENTE'];
+            const filtered = entregas.filter(e => estados.includes(e.estado));
+
+            if (filtered.length === 0) {
+                const icons = {
+                    'pendientes': 'fa-inbox',
+                    'en-camino': 'fa-route',
+                    'completadas': 'fa-check-double'
+                };
+                const msgs = {
+                    'pendientes': 'No hay entregas pendientes',
+                    'en-camino': 'No hay entregas en ruta',
+                    'completadas': 'Aun no hay entregas completadas hoy'
+                };
+                content.innerHTML = `
+                    <div class="empty">
+                        <div class="icon"><i class="fas ${icons[currentTab] || 'fa-box'}"></i></div>
+                        <p>${msgs[currentTab] || 'Sin datos'}</p>
+                    </div>`;
+                return;
+            }
+
+            let html = '<div class="entregas-list">';
+            filtered.forEach((e, i) => {
+                const estadoClass = e.estado === 'EN CAMINO' ? 'en-camino' :
+                                   e.estado === 'ENTREGADO' ? 'entregado' : '';
+                const estadoBadge = e.estado === 'PENDIENTE' || e.estado === 'ASIGNADO' ? 'estado-pendiente' :
+                                   e.estado === 'EN CAMINO' ? 'estado-en-camino' : 'estado-entregado';
+                const estadoText = e.estado === 'ASIGNADO' ? 'ASIGNADO' : e.estado;
+                const escapedDir = (e.direccion || '').replace(/'/g, "\\'");
+                const escapedCliente = (e.cliente_nombre || '').replace(/'/g, "\\'");
+
+                html += `
+                <div class="entrega-card ${estadoClass}" style="animation-delay:${i * 0.05}s">
+                    <div class="entrega-header">
+                        <span class="entrega-id">
+                            <i class="fas fa-box" style="color:var(--naranja);margin-right:4px"></i>
+                            Entrega #${e.id}
+                        </span>
+                        <span class="entrega-estado ${estadoBadge}">${estadoText}</span>
+                    </div>
+                    <div class="entrega-cliente">${e.cliente_nombre || 'Cliente sin nombre'}</div>
+                    <div class="entrega-direccion">
+                        <i class="fas fa-map-marker-alt"></i>
+                        ${e.direccion || 'Sin direccion'}
+                    </div>
+                    ${e.referencia ? `
+                        <div class="entrega-direccion">
+                            <i class="fas fa-info-circle"></i>
+                            ${e.referencia}
+                        </div>` : ''}
+                    <div class="entrega-meta">
+                        <span class="metodo">
+                            <i class="fas fa-credit-card"></i>
+                            ${e.metodo_pago || 'Sin metodo'}
+                        </span>
+                        <span class="entrega-monto">$${(e.monto_cobrar || 0).toLocaleString('es-MX')}</span>
+                    </div>
+                    ${e.cambio_llevar > 0 ? `
+                        <div class="cambio-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Llevar cambio de: $${e.cambio_llevar.toLocaleString('es-MX')}
+                        </div>` : ''}
+                    <div class="actions">
+                        ${e.estado === 'PENDIENTE' || e.estado === 'ASIGNADO' ?
+                            `<button class="btn btn-iniciar" onclick="iniciarEntrega(${e.id})">
+                                <i class="fas fa-play"></i> Iniciar
+                            </button>` : ''}
+                        ${e.estado === 'EN CAMINO' ?
+                            `<button class="btn btn-completar" onclick="completarEntrega(${e.id})">
+                                <i class="fas fa-check"></i> Entregar
+                            </button>` : ''}
+                        ${e.telefono_cliente ?
+                            `<button class="btn btn-llamar" onclick="llamarCliente('${e.telefono_cliente}')">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                            <button class="btn btn-whatsapp" onclick="whatsappCliente('${e.telefono_cliente}','${escapedCliente}',${e.id})">
+                                <i class="fab fa-whatsapp"></i>
+                            </button>` : ''}
+                        ${e.direccion ?
+                            `<button class="btn btn-mapa" onclick="abrirMapa('${escapedDir}')">
+                                <i class="fas fa-map"></i>
+                            </button>` : ''}
+                    </div>
+                </div>`;
+            });
+            html += '</div>';
+            content.innerHTML = html;
+        }
+
+        function renderConfig(content) {
+            content.innerHTML = `
+                <div class="config-section">
+                    <div class="config-card">
+                        <label><i class="fas fa-server"></i> URL del Servidor API</label>
+                        <input type="url" id="cfgApiUrl" value="${API_URL}" placeholder="http://192.168.1.100:5000">
+                    </div>
+                    <div class="config-card">
+                        <label><i class="fas fa-id-badge"></i> ID del Repartidor</label>
+                        <input type="number" id="cfgRepartidorId" value="${REPARTIDOR_ID}" min="1">
+                    </div>
+                    <button class="btn-guardar" onclick="guardarConfig()">
+                        <i class="fas fa-save"></i> GUARDAR CONFIGURACION
+                    </button>
+                    <button class="btn-guardar verde" onclick="refreshAll(); cambiarTab('pendientes', document.querySelector('[data-tab=pendientes]'))">
+                        <i class="fas fa-sync-alt"></i> ACTUALIZAR DATOS
+                    </button>
+                    <div style="text-align:center;margin-top:24px;color:var(--gris-texto);font-size:12px">
+                        <strong>Cargo-GO</strong> v3.0<br>
+                        App Repartidores PWA<br>
+                        <span style="opacity:0.5">Tulancingo, Hidalgo</span>
+                    </div>
+                </div>`;
+        }
+
+        // ═══════════ CONFIG ═══════════
+        function guardarConfig() {
+            const apiUrl = document.getElementById('cfgApiUrl').value.replace(/\/$/, '');
+            const repartidorId = parseInt(document.getElementById('cfgRepartidorId').value) || 1;
+            config = { apiUrl, repartidorId };
+            localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+            API_URL = apiUrl;
+            REPARTIDOR_ID = repartidorId;
+            showToast('Configuracion guardada', 'success');
+            refreshAll();
+        }
+
+        // ═══════════ TABS ═══════════
+        function cambiarTab(tab, el) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            if (el) el.classList.add('active');
+            else {
+                const tabEl = document.querySelector(`[data-tab="${tab}"]`);
+                if (tabEl) tabEl.classList.add('active');
+            }
+
+            // Update bottom nav
+            document.querySelectorAll('.nav-btn').forEach((btn, i) => {
+                const tabs = ['pendientes', 'en-camino', 'completadas', 'config'];
+                btn.classList.toggle('active', tabs[i] === tab);
+            });
+
+            renderTab();
+        }
+
+        // ═══════════ UTILS ═══════════
+        function showToast(msg, type = 'info') {
+            const toast = document.getElementById('toast');
+            const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+            toast.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i> ${msg}`;
+            toast.className = `toast ${type} show`;
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function updateOnlineStatus(online) {
+            const badge = document.getElementById('statusBadge');
+            badge.textContent = online ? 'EN LINEA' : 'SIN CONEXION';
+            badge.className = `status-badge ${online ? 'online' : 'offline'}`;
+        }
+
+        function updateBadges() {
+            const pendientes = entregas.filter(e => e.estado === 'PENDIENTE' || e.estado === 'ASIGNADO').length;
+            const badge = document.getElementById('badgePendientes');
+            if (pendientes > 0) {
+                badge.textContent = pendientes;
+                badge.style.display = 'inline';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function animateNumber(id, endVal) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const startVal = parseInt(el.textContent) || 0;
+            if (startVal === endVal) { el.textContent = endVal; return; }
+            const duration = 400;
+            const startTime = Date.now();
+            const tick = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                el.textContent = Math.round(startVal + (endVal - startVal) * eased);
+                if (progress < 1) requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+        }
+
+        async function refreshAll() {
+            const btn = document.getElementById('btnRefresh');
+            btn.classList.add('spinning');
+            setTimeout(() => btn.classList.remove('spinning'), 600);
+
+            await Promise.all([cargarEntregas(), cargarStats(), cargarDriverInfo()]);
+        }
+
+        // ═══════════ EVENTS ═══════════
+        window.addEventListener('online', () => { updateOnlineStatus(true); refreshAll(); });
+        window.addEventListener('offline', () => updateOnlineStatus(false));
+
+        // Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+                .then(() => console.log('[CGO] SW registrado'))
+                .catch(e => console.log('[CGO] SW error:', e));
+        }
+
+        // ═══════════ INIT ═══════════
+        refreshAll();
+        // Auto-refresh cada 30 segundos
+        setInterval(refreshAll, 30000);
+    </script>
+</body>
+</html>
