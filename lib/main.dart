@@ -515,33 +515,43 @@ class _MainAppState extends State<MainApp> {
   @override
   void initState() {
     super.initState();
-    _loadApiData();
+    // Load API data after first frame to avoid crash
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadApiData());
   }
 
   Future<void> _loadApiData() async {
-    setState(() => _loadingApi = true);
-    final online = await ApiService.isOnline();
-    setState(() => _online = online);
+    try {
+      if (!mounted) return;
+      setState(() => _loadingApi = true);
 
-    if (online) {
-      final results = await Future.wait([
-        ApiService.getStats(),
-        ApiService.getNegocios(),
-        ApiService.getFarmaciaProductos(limite: 100),
-        ApiService.getOfertas(),
-        ApiService.getHistorial(),
-      ]);
+      final online = await ApiService.isOnline();
+      if (!mounted) return;
+      setState(() => _online = online);
 
-      setState(() {
-        _apiStats = results[0] as Map<String, dynamic>? ?? {};
-        _apiNegocios = results[1] as List<Map<String, dynamic>>? ?? [];
-        _apiFarmProductos = results[2] as List<Map<String, dynamic>>? ?? [];
-        _apiOfertas = results[3] as List<Map<String, dynamic>>? ?? [];
-        _apiHistorial = results[4] as List<Map<String, dynamic>>? ?? [];
-        _loadingApi = false;
-      });
-    } else {
-      setState(() => _loadingApi = false);
+      if (online) {
+        final stats = await ApiService.getStats();
+        final negocios = await ApiService.getNegocios();
+        final productos = await ApiService.getFarmaciaProductos(limite: 100);
+        final ofertas = await ApiService.getOfertas();
+        final historial = await ApiService.getHistorial();
+
+        if (!mounted) return;
+        setState(() {
+          _apiStats = stats ?? {};
+          _apiNegocios = negocios;
+          _apiFarmProductos = productos;
+          _apiOfertas = ofertas;
+          _apiHistorial = historial;
+          _loadingApi = false;
+        });
+      } else {
+        if (!mounted) return;
+        setState(() => _loadingApi = false);
+      }
+    } catch (e) {
+      debugPrint('[CGO] Error loading API: $e');
+      if (!mounted) return;
+      setState(() { _online = false; _loadingApi = false; });
     }
   }
 
