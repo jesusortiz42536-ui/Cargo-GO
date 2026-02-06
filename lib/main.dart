@@ -582,6 +582,23 @@ class _MainAppState extends State<MainApp> {
     }
   }
 
+  // ═══ LOGO BAR (aparece en todas las pantallas) ═══
+  Widget _logoBar() => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(children: [
+      Image.asset('assets/images/logo.png', height: 32),
+      const Spacer(),
+      if (_cartQty > 0) GestureDetector(onTap: _openCart,
+        child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.shopping_cart, size: 14, color: AppTheme.gr),
+            const SizedBox(width: 4),
+            Text('$_cartQty', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.gr)),
+          ]))),
+    ]),
+  );
+
   int get _cartQty => _cart.fold(0, (s, x) => s + x.q);
   int get _cartTotal => _cart.fold(0, (s, x) => s + x.price * x.q);
 
@@ -795,6 +812,7 @@ class _MainAppState extends State<MainApp> {
     final sNegocios = _online ? '${_apiNegocios.isNotEmpty ? _apiNegocios.length : allNegs.length}' : '${allNegs.length}';
 
     return ListView(padding: const EdgeInsets.all(14), children: [
+      _logoBar(),
       // Connection indicator
       GestureDetector(onTap: _loadApiData,
         child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), margin: const EdgeInsets.only(bottom: 8),
@@ -886,6 +904,7 @@ class _MainAppState extends State<MainApp> {
     }).toList();
 
     return ListView(padding: const EdgeInsets.all(14), children: [
+      _logoBar(),
       // City filter
       Row(children: [
         _cityBtn('all', '🗺️ Todos (${negHidalgo.length + negCdmx.length})'),
@@ -979,7 +998,11 @@ class _MainAppState extends State<MainApp> {
 
     return Scaffold(backgroundColor: AppTheme.bg,
       appBar: AppBar(backgroundColor: AppTheme.sf, leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() => _menuScreen = null)),
-        title: Text(useApi ? '💊 Farmacias Madrid (${_apiFarmProductos.length})' : '💊 Farmacias Madrid', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+        title: Row(children: [
+          Image.asset('assets/images/logo.png', height: 24),
+          const SizedBox(width: 8),
+          Text(useApi ? '💊 Farmacia (${_apiFarmProductos.length})' : '💊 Farmacia', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+        ]),
         actions: [
           if (_online) Padding(padding: const EdgeInsets.only(right: 8),
             child: Icon(Icons.cloud_done, size: 16, color: AppTheme.gr)),
@@ -1038,6 +1061,7 @@ class _MainAppState extends State<MainApp> {
   Widget _pedScreen() {
     final fp = _pedFilter == 'all' ? pedidos : pedidos.where((p) => p.city == _pedFilter).toList();
     return ListView(padding: const EdgeInsets.all(14), children: [
+      _logoBar(),
       Row(children: [for (var f in [['all','Todos'],['hidalgo','Hidalgo'],['cdmx','CDMX']])
         Expanded(child: GestureDetector(onTap: () => setState(() => _pedFilter = f[0]),
           child: Container(margin: const EdgeInsets.symmetric(horizontal: 2), padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1103,6 +1127,7 @@ class _MainAppState extends State<MainApp> {
 
   // ═══ MAPA ═══
   Widget _mapScreen() => ListView(padding: const EdgeInsets.all(14), children: [
+    _logoBar(),
     Container(height: 200, decoration: BoxDecoration(color: const Color(0xFF080D1A), borderRadius: BorderRadius.circular(14), border: Border.all(color: AppTheme.bd)),
       child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
@@ -1141,6 +1166,7 @@ class _MainAppState extends State<MainApp> {
 
   // ═══ PERFIL ═══
   Widget _perfScreen() => ListView(padding: const EdgeInsets.all(14), children: [
+    _logoBar(),
     Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
       gradient: LinearGradient(colors: [AppTheme.ac.withOpacity(0.1), AppTheme.pu.withOpacity(0.1)])),
       child: Column(children: [
