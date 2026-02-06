@@ -586,7 +586,7 @@ class _MainAppState extends State<MainApp> {
   Widget _logoBar() => Padding(
     padding: const EdgeInsets.only(bottom: 10),
     child: Row(children: [
-      Image.asset('assets/images/logo.png', height: 32),
+      Image.asset('assets/images/logo.png', height: 128),
       const Spacer(),
       if (_cartQty > 0) GestureDetector(onTap: _openCart,
         child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
