@@ -765,7 +765,7 @@ class _MainAppState extends State<MainApp> {
   }
 
   Widget _buildNav() => Container(
-    decoration: BoxDecoration(color: AppTheme.sf, border: Border(top: BorderSide(color: AppTheme.bd, width: 0.5))),
+    decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.shade300, width: 0.5))),
     child: Row(children: [
       _navBtn(0, Icons.dashboard_rounded, 'Inicio'),
       _navBtn(1, Icons.store_rounded, 'Negocios'),
@@ -778,8 +778,8 @@ class _MainAppState extends State<MainApp> {
   Widget _navBtn(int i, IconData ic, String l) => Expanded(child: InkWell(
     onTap: () => setState(() => _tab = i),
     child: Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Icon(ic, size: 22, color: _tab == i ? AppTheme.ac : AppTheme.td),
-      Text(l, style: TextStyle(fontSize: 9, color: _tab == i ? AppTheme.ac : AppTheme.td, fontWeight: _tab == i ? FontWeight.w700 : FontWeight.w400)),
+      Icon(ic, size: 22, color: _tab == i ? AppTheme.ac : Colors.grey),
+      Text(l, style: TextStyle(fontSize: 9, color: _tab == i ? AppTheme.ac : Colors.grey, fontWeight: _tab == i ? FontWeight.w700 : FontWeight.w400)),
     ]))));
 
   Widget _buildScreen() {
