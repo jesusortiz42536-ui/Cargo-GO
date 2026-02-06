@@ -7,7 +7,7 @@ import 'dart:io';
 
 class ApiService {
   // En emulador Android, 10.0.2.2 apunta al localhost de la PC host
-  static String _baseUrl = 'http://10.0.2.2:5000';
+  static String _baseUrl = 'http://192.168.0.103:5000';
 
   static String get baseUrl => _baseUrl;
   static set baseUrl(String url) => _baseUrl = url.replaceAll(RegExp(r'/$'), '');
