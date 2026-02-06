@@ -752,26 +752,7 @@ class _MainAppState extends State<MainApp> {
   // ═══ DASHBOARD ═══
   Widget _dashScreen() {
     final allNegs = [...negHidalgo, ...negCdmx];
-    // Use API stats if available, otherwise hardcoded
-    final sEntregas = _online ? '${_apiStats['envios_hoy'] ?? 0}' : '47';
-    final sIngresos = _online ? '\$${((_apiStats['ingresos_hoy'] ?? 0) / 1000).toStringAsFixed(1)}k' : '\$98.2k';
-    final sProductos = _online ? '${_apiFarmProductos.length}+' : '77K+';
-    final sNegocios = _online ? '${_apiNegocios.isNotEmpty ? _apiNegocios.length : allNegs.length}' : '${allNegs.length}';
-
     return ListView(padding: const EdgeInsets.all(14), children: [
-      // Connection indicator
-      GestureDetector(onTap: _loadApiData,
-        child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
-            color: _online ? AppTheme.gr.withOpacity(0.1) : AppTheme.rd.withOpacity(0.1)),
-          child: Row(children: [
-            Icon(_online ? Icons.cloud_done : Icons.cloud_off, size: 14, color: _online ? AppTheme.gr : AppTheme.rd),
-            const SizedBox(width: 6),
-            Text(_online ? 'Conectado a Cargo-GO API' : 'Sin conexión · Datos locales', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: _online ? AppTheme.gr : AppTheme.rd)),
-            const Spacer(),
-            if (_loadingApi) SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5, color: _online ? AppTheme.gr : AppTheme.rd))
-            else Icon(Icons.refresh, size: 14, color: _online ? AppTheme.gr : AppTheme.rd),
-          ]))),
       // Saturnos + Quick menus
       GestureDetector(onTap: () => setState(() => _menuScreen = 'farmacia'),
         child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
@@ -785,12 +766,12 @@ class _MainAppState extends State<MainApp> {
             ]),
           ]))),
       const SizedBox(height: 12),
-      // Stats - uses API data when online
+      // Stats
       Row(children: [
-        _stat('Entregas', sEntregas, Icons.local_shipping, AppTheme.ac),
-        _stat('Ingresos', sIngresos, Icons.trending_up, AppTheme.gr),
-        _stat('Productos', sProductos, Icons.medication, AppTheme.tl),
-        _stat('Negocios', sNegocios, Icons.store, AppTheme.or),
+        _stat('Entregas', '47', Icons.local_shipping, AppTheme.ac),
+        _stat('Ingresos', '\$98.2k', Icons.trending_up, AppTheme.gr),
+        _stat('Productos', '77K+', Icons.medication, AppTheme.tl),
+        _stat('Negocios', '${allNegs.length}', Icons.store, AppTheme.or),
       ]),
       const SizedBox(height: 12),
       // Quick access menus
@@ -939,16 +920,9 @@ class _MainAppState extends State<MainApp> {
 
   // ═══ FARMACIA ═══
   Widget _farmScreen() {
-    // Use API products when online, otherwise local data
-    final useApi = _online && _apiFarmProductos.isNotEmpty;
-
     return Scaffold(backgroundColor: AppTheme.bg,
       appBar: AppBar(backgroundColor: AppTheme.sf, leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() => _menuScreen = null)),
-        title: const Text('💊 Farmacias Madrid', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-        actions: [
-          if (_online) Padding(padding: const EdgeInsets.only(right: 8),
-            child: Icon(Icons.cloud_done, size: 16, color: AppTheme.gr)),
-        ]),
+        title: const Text('💊 Farmacias Madrid', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700))),
       body: ListView(padding: const EdgeInsets.all(12), children: [
         // Saturnos banner
         Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
@@ -961,77 +935,37 @@ class _MainAppState extends State<MainApp> {
             Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)),
               child: const Text('-35%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white))),
           ])),
-        if (useApi) ...[
-          Padding(padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text('${_apiFarmProductos.length} productos desde la API', style: TextStyle(fontSize: 9, color: AppTheme.gr, fontWeight: FontWeight.w600))),
-        ],
         const SizedBox(height: 10),
-        // Show API products when available
-        if (useApi)
-          ..._apiFarmProductos.map((p) {
-            final precio = (p['precio'] ?? 0).toDouble();
-            final oferta = p['precioOferta'] != null ? (p['precioOferta']).toDouble() : null;
-            final descuento = oferta != null && precio > 0 ? ((1 - oferta / precio) * 100).round() : 0;
-            return Container(margin: const EdgeInsets.only(bottom: 5), padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.bd)),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  const Text('💊', style: TextStyle(fontSize: 12)),
-                  const SizedBox(width: 4),
-                  Expanded(child: Text(p['nombre'] ?? '', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx))),
-                ]),
-                Text('${p['laboratorio'] ?? ''} · Stock: ${p['stock'] ?? 0}', style: TextStyle(fontSize: 9, color: AppTheme.tm)),
-                const SizedBox(height: 4),
-                Row(children: [
-                  if (oferta != null) ...[
-                    Text('\$${precio.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: AppTheme.td, decoration: TextDecoration.lineThrough, fontFamily: 'monospace')),
-                    const SizedBox(width: 8),
-                    Text('\$${oferta.toStringAsFixed(0)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
-                    const SizedBox(width: 6),
-                    Container(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1), decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
-                      child: Text('-$descuento%', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.w700, color: AppTheme.gr))),
-                  ] else
-                    Text('\$${precio.toStringAsFixed(0)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
-                  const Spacer(),
-                  ElevatedButton(onPressed: () => _addToCart(p['nombre'] ?? '', precio.round(), 'Farmacias Madrid', oferta: oferta?.round()),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gr.withOpacity(0.12), foregroundColor: AppTheme.gr, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)), elevation: 0, minimumSize: Size.zero),
-                    child: const Text('+Agregar', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600))),
-                ]),
-              ]));
-          })
-        else
-          // Fallback: local hardcoded data
-          ...farmacia.map((p) {
-            final cc = {'bio': AppTheme.pu, 'onc': const Color(0xFFE91E63), 'esp': AppTheme.cy, 'gen': AppTheme.gr, 'pat': AppTheme.ac}[p.cat] ?? AppTheme.gr;
-            final ce = {'bio': '🧬', 'onc': '🎗️', 'esp': '⚡', 'gen': '💊', 'pat': '🏷️'}[p.cat] ?? '💊';
-            return Container(margin: const EdgeInsets.only(bottom: 5), padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.bd),
-                boxShadow: [BoxShadow(color: cc.withOpacity(0.05), blurRadius: 4, offset: const Offset(-3, 0))]),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Text(ce, style: const TextStyle(fontSize: 12)),
-                  const SizedBox(width: 4),
-                  Expanded(child: Text(p.n, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx))),
-                  if (p.rx) Text('℞', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.or)),
-                ]),
-                Text('${p.lab} · Stock: ${p.stock}', style: TextStyle(fontSize: 9, color: AppTheme.tm)),
-                const SizedBox(height: 4),
-                Row(children: [
-                  Text('\$${p.lista}', style: TextStyle(fontSize: 10, color: AppTheme.td, decoration: TextDecoration.lineThrough, fontFamily: 'monospace')),
-                  const SizedBox(width: 8),
-                  Text('\$${p.oferta}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
-                  const SizedBox(width: 6),
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1), decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
-                    child: const Text('-35%', style: TextStyle(fontSize: 7, fontWeight: FontWeight.w700, color: AppTheme.gr))),
-                  const Spacer(),
-                  ElevatedButton(onPressed: () => _addToCart(p.n, p.lista, 'Farmacias Madrid', oferta: p.oferta),
-                    style: ElevatedButton.styleFrom(backgroundColor: cc.withOpacity(0.12), foregroundColor: cc, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)), elevation: 0, minimumSize: Size.zero),
-                    child: const Text('+Agregar', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600))),
-                ]),
-              ]));
-          }),
+        ...farmacia.map((p) {
+          final cc = {'bio': AppTheme.pu, 'onc': const Color(0xFFE91E63), 'esp': AppTheme.cy, 'gen': AppTheme.gr, 'pat': AppTheme.ac}[p.cat] ?? AppTheme.gr;
+          final ce = {'bio': '🧬', 'onc': '🎗️', 'esp': '⚡', 'gen': '💊', 'pat': '🏷️'}[p.cat] ?? '💊';
+          return Container(margin: const EdgeInsets.only(bottom: 5), padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.bd),
+              boxShadow: [BoxShadow(color: cc.withOpacity(0.05), blurRadius: 4, offset: const Offset(-3, 0))]),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Text(ce, style: const TextStyle(fontSize: 12)),
+                const SizedBox(width: 4),
+                Expanded(child: Text(p.n, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx))),
+                if (p.rx) Text('℞', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.or)),
+              ]),
+              Text('${p.lab} · Stock: ${p.stock}', style: TextStyle(fontSize: 9, color: AppTheme.tm)),
+              const SizedBox(height: 4),
+              Row(children: [
+                Text('\$${p.lista}', style: TextStyle(fontSize: 10, color: AppTheme.td, decoration: TextDecoration.lineThrough, fontFamily: 'monospace')),
+                const SizedBox(width: 8),
+                Text('\$${p.oferta}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
+                const SizedBox(width: 6),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1), decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+                  child: const Text('-35%', style: TextStyle(fontSize: 7, fontWeight: FontWeight.w700, color: AppTheme.gr))),
+                const Spacer(),
+                ElevatedButton(onPressed: () => _addToCart(p.n, p.lista, 'Farmacias Madrid', oferta: p.oferta),
+                  style: ElevatedButton.styleFrom(backgroundColor: cc.withOpacity(0.12), foregroundColor: cc, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)), elevation: 0, minimumSize: Size.zero),
+                  child: const Text('+Agregar', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600))),
+              ]),
+            ]));
+        }),
       ]),
       floatingActionButton: _cartQty > 0 ? FloatingActionButton.extended(onPressed: _openCart, backgroundColor: AppTheme.gr,
         icon: const Icon(Icons.shopping_cart, color: Colors.white, size: 18),
