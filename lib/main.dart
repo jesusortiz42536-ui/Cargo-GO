@@ -385,7 +385,7 @@ class LoginScreen extends StatefulWidget {
   @override State<LoginScreen> createState() => _LoginState();
 }
 class _LoginState extends State<LoginScreen> {
-  int step = 0;
+  int step = 0; // 0=login, 1=code
   String phone = '';
   List<String> code = ['','','','','',''];
   bool loading = false;
@@ -394,7 +394,7 @@ class _LoginState extends State<LoginScreen> {
     if (phone.length < 10) return;
     setState(() => loading = true);
     Future.delayed(const Duration(milliseconds: 1000), () {
-      setState(() { loading = false; step = 2; });
+      setState(() { loading = false; step = 1; });
     });
   }
 
@@ -411,81 +411,132 @@ class _LoginState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppTheme.bg, Color(0xFF0A1628), Color(0xFF0D0B20)])),
-        child: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-          // Logo
-          const Text('🐰🚛', style: TextStyle(fontSize: 50)),
-          const SizedBox(height: 8),
-          RichText(text: TextSpan(children: [
-            const TextSpan(text: 'Cargo', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: AppTheme.tx)),
-            const TextSpan(text: '-', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: AppTheme.rd)),
-            TextSpan(text: 'GO', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, foreground: Paint()..shader = const LinearGradient(colors: [AppTheme.ac, AppTheme.tl]).createShader(const Rect.fromLTWH(0, 0, 60, 40)))),
-          ])),
-          const SizedBox(height: 4),
-          Text('MOVEMOS LA CIUDAD POR TI', style: TextStyle(fontSize: 10, color: AppTheme.tl, letterSpacing: 3)),
-          const SizedBox(height: 32),
+        decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF0A1628), Color(0xFF060B18), Color(0xFF0D0B20)])),
+        child: SafeArea(child: Center(child: SingleChildScrollView(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16), child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 24),
+          // ═══ LOGO CARGO-GO (replica exacta React Native) ═══
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(color: const Color(0xFF0E1A2E), borderRadius: BorderRadius.circular(20)),
+            child: Column(children: [
+              Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [
+                const Text('🚛', style: TextStyle(fontSize: 36)),
+                const SizedBox(width: 8),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  RichText(text: const TextSpan(children: [
+                    TextSpan(text: 'Cargo', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: Colors.white)),
+                    TextSpan(text: '-', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: Color(0xFFFF4757))),
+                    TextSpan(text: 'GO', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: Color(0xFFFFA502))),
+                  ])),
+                  const Text('Movemos la ciudad por ti', style: TextStyle(fontSize: 11, color: Colors.white70, fontStyle: FontStyle.italic)),
+                ]),
+              ]),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(color: const Color(0xFF1C2D4A), borderRadius: BorderRadius.circular(20)),
+                child: const Text('Envios y compras locales · CDMX ↔ Hidalgo', style: TextStyle(fontSize: 10, color: Color(0xFF8899B4))),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 40),
 
           if (step == 0) ...[
-            _btn('📱 Enviar Código SMS', AppTheme.ac, Colors.white, () => setState(() => step = 1)),
-            const SizedBox(height: 8),
-            Text('o continúa con', style: TextStyle(fontSize: 10, color: AppTheme.td)),
-            const SizedBox(height: 8),
-            _btn('f  Facebook', const Color(0xFF1877F2).withOpacity(0.1), const Color(0xFF4599FF), () {}),
-            const SizedBox(height: 6),
-            _btn('📷 Instagram', const Color(0xFFE4405F).withOpacity(0.05), const Color(0xFFFF6B8A), () {}),
-            const SizedBox(height: 6),
-            _btn('G  Google', AppTheme.cd, Colors.white, () {}),
-            const SizedBox(height: 12),
-            TextButton(onPressed: _goMain, child: Text('Entrar como invitado →', style: TextStyle(color: AppTheme.tl, fontSize: 12))),
+            // ═══ INICIAR SESION ═══
+            const Align(alignment: Alignment.centerLeft, child: Text('Iniciar Sesion', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white))),
+            const SizedBox(height: 16),
+            Align(alignment: Alignment.centerLeft, child: Text('Numero de telefono', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFFFFA502)))),
+            const SizedBox(height: 10),
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(color: const Color(0xFF111D33), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF1C2D4A))),
+                child: const Text('+52', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: TextField(
+                onChanged: (v) => setState(() => phone = v.replaceAll(RegExp(r'\D'), '')),
+                keyboardType: TextInputType.phone,
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: 1),
+                decoration: InputDecoration(
+                  hintText: '10 digitos', hintStyle: const TextStyle(color: Color(0xFF506080), fontSize: 14),
+                  filled: true, fillColor: const Color(0xFF111D33),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF1C2D4A))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF1C2D4A))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFFFA502))),
+                ),
+              )),
+            ]),
+            const SizedBox(height: 20),
+            // Enviar Codigo - amarillo
+            SizedBox(width: double.infinity, child: ElevatedButton(
+              onPressed: loading ? null : _sendCode,
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFC107), foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), elevation: 0),
+              child: Text(loading ? 'Enviando...' : 'Enviar Codigo', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            )),
+            const SizedBox(height: 20),
+            const Text('o continua con', style: TextStyle(fontSize: 12, color: Color(0xFF506080))),
+            const SizedBox(height: 14),
+            // Facebook - azul
+            SizedBox(width: double.infinity, child: ElevatedButton.icon(
+              onPressed: () {},
+              icon: const Text('f', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, fontFamily: 'serif')),
+              label: const Text('Continuar con Facebook', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1877F2), foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), elevation: 0),
+            )),
+            const SizedBox(height: 10),
+            // Instagram - blanco
+            SizedBox(width: double.infinity, child: OutlinedButton.icon(
+              onPressed: () {},
+              icon: const Text('ig', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFFE4405F))),
+              label: const Text('Continuar con Instagram', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.black87, backgroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), side: BorderSide.none),
+            )),
+            const SizedBox(height: 10),
+            // Entrar como invitado - outlined
+            SizedBox(width: double.infinity, child: OutlinedButton(
+              onPressed: _goMain,
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), side: const BorderSide(color: Color(0xFF1C2D4A))),
+              child: const Text('Entrar como invitado', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            )),
+            const SizedBox(height: 20),
+            const Text('Al continuar, aceptas nuestros Términos y Condiciones', style: TextStyle(fontSize: 10, color: Color(0xFF506080))),
           ],
 
           if (step == 1) ...[
-            Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => setState(() => step = 0), icon: Icon(Icons.arrow_back, size: 14, color: AppTheme.tm), label: Text('Volver', style: TextStyle(color: AppTheme.tm, fontSize: 11)))),
+            Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => setState(() => step = 0), icon: const Icon(Icons.arrow_back, size: 14, color: Color(0xFF8899B4)), label: const Text('Volver', style: TextStyle(color: Color(0xFF8899B4), fontSize: 11)))),
             const SizedBox(height: 8),
-            Align(alignment: Alignment.centerLeft, child: Text('Ingresa tu número', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.tx))),
-            const SizedBox(height: 12),
-            Row(children: [
-              Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.bd)),
-                child: Text('🇲🇽 +52', style: TextStyle(color: AppTheme.tx, fontWeight: FontWeight.w600))),
-              const SizedBox(width: 8),
-              Expanded(child: TextField(onChanged: (v) => setState(() => phone = v.replaceAll(RegExp(r'\D'), '')),
-                keyboardType: TextInputType.phone, style: TextStyle(color: AppTheme.tx, fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 1.5),
-                decoration: InputDecoration(hintText: '771 123 4567', hintStyle: TextStyle(color: AppTheme.td), filled: true, fillColor: AppTheme.cd,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.bd))))),
-            ]),
-            const SizedBox(height: 16),
-            _btn(loading ? 'Enviando...' : 'Enviar Código', phone.length >= 10 ? AppTheme.ac : AppTheme.cd, phone.length >= 10 ? Colors.white : AppTheme.td, _sendCode),
-          ],
-
-          if (step == 2) ...[
-            Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => setState(() => step = 1), icon: Icon(Icons.arrow_back, size: 14, color: AppTheme.tm), label: Text('Cambiar', style: TextStyle(color: AppTheme.tm, fontSize: 11)))),
-            const SizedBox(height: 8),
-            Align(alignment: Alignment.centerLeft, child: Text('Código de verificación', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.tx))),
-            Text('Enviado a +52 $phone', style: TextStyle(fontSize: 11, color: AppTheme.tm)),
-            const SizedBox(height: 16),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(6, (i) => Container(width: 42, height: 50, margin: const EdgeInsets.symmetric(horizontal: 3),
+            const Align(alignment: Alignment.centerLeft, child: Text('Código de verificación', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white))),
+            const SizedBox(height: 4),
+            Text('Enviado a +52 $phone', style: const TextStyle(fontSize: 12, color: Color(0xFF8899B4))),
+            const SizedBox(height: 20),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(6, (i) => Container(width: 44, height: 52, margin: const EdgeInsets.symmetric(horizontal: 3),
               child: TextField(onChanged: (v) { setState(() => code[i] = v); if (v.isNotEmpty && i < 5) FocusScope.of(context).nextFocus(); if (i == 5 && v.isNotEmpty) _verify(); },
                 maxLength: 1, textAlign: TextAlign.center, keyboardType: TextInputType.number,
-                style: TextStyle(color: AppTheme.tx, fontSize: 20, fontWeight: FontWeight.w700),
-                decoration: InputDecoration(counterText: '', filled: true, fillColor: AppTheme.cd,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: code[i].isNotEmpty ? AppTheme.ac : AppTheme.bd, width: 2))))))),
-            const SizedBox(height: 16),
-            _btn(loading ? 'Verificando...' : '✓ Verificar', AppTheme.gr, Colors.white, _verify),
+                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
+                decoration: InputDecoration(counterText: '', filled: true, fillColor: const Color(0xFF111D33),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: code[i].isNotEmpty ? const Color(0xFFFFA502) : const Color(0xFF1C2D4A), width: 2)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: code[i].isNotEmpty ? const Color(0xFFFFA502) : const Color(0xFF1C2D4A), width: 2)),
+                ))))),
+            const SizedBox(height: 20),
+            SizedBox(width: double.infinity, child: ElevatedButton(
+              onPressed: loading ? null : _verify,
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00D68F), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), elevation: 0),
+              child: Text(loading ? 'Verificando...' : 'Verificar', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            )),
           ],
 
-          const SizedBox(height: 24),
-          Text('v5 ULTIMATE · Farmacias Madrid · 100 negocios 🇲🇽', style: TextStyle(fontSize: 8, color: AppTheme.td)),
+          const SizedBox(height: 16),
         ]))),
-      ),
+      )),
     );
   }
-
-  Widget _btn(String t, Color bg, Color fg, VoidCallback onTap) => SizedBox(width: double.infinity, child: ElevatedButton(
-    onPressed: loading ? null : onTap,
-    style: ElevatedButton.styleFrom(backgroundColor: bg, foregroundColor: fg, padding: const EdgeInsets.symmetric(vertical: 14),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 0),
-    child: Text(t, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-  ));
 }
 
 // ═══ MAIN APP ═══
