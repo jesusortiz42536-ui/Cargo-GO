@@ -415,7 +415,7 @@ class _LoginState extends State<LoginScreen> {
         child: SafeArea(child: Center(child: SingleChildScrollView(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16), child: Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 24),
           // ═══ LOGO CARGO-GO (imagen real) ═══
-          Image.asset('assets/images/logo.png', width: 260),
+          Image.asset('assets/images/logo.png', width: 520),
           const SizedBox(height: 40),
 
           if (step == 0) ...[
