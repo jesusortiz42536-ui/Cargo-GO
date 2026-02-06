@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'services/api_service.dart';
 
 class AppTheme {
   static const bg = Color(0xFF060B18);
@@ -501,6 +502,49 @@ class _MainAppState extends State<MainApp> {
   String _pedFilter = 'all', _negCity = 'hidalgo', _negTipo = 'all';
   String _negSearch = '';
 
+  // ═══ API STATE ═══
+  bool _online = false;
+  bool _loadingApi = false;
+  Map<String, dynamic> _apiStats = {};
+  List<Map<String, dynamic>> _apiNegocios = [];
+  List<Map<String, dynamic>> _apiFarmProductos = [];
+  List<Map<String, dynamic>> _apiOfertas = [];
+  List<Map<String, dynamic>> _apiPedidos = [];
+  List<Map<String, dynamic>> _apiHistorial = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadApiData();
+  }
+
+  Future<void> _loadApiData() async {
+    setState(() => _loadingApi = true);
+    final online = await ApiService.isOnline();
+    setState(() => _online = online);
+
+    if (online) {
+      final results = await Future.wait([
+        ApiService.getStats(),
+        ApiService.getNegocios(),
+        ApiService.getFarmaciaProductos(limite: 100),
+        ApiService.getOfertas(),
+        ApiService.getHistorial(),
+      ]);
+
+      setState(() {
+        _apiStats = results[0] as Map<String, dynamic>? ?? {};
+        _apiNegocios = results[1] as List<Map<String, dynamic>>? ?? [];
+        _apiFarmProductos = results[2] as List<Map<String, dynamic>>? ?? [];
+        _apiOfertas = results[3] as List<Map<String, dynamic>>? ?? [];
+        _apiHistorial = results[4] as List<Map<String, dynamic>>? ?? [];
+        _loadingApi = false;
+      });
+    } else {
+      setState(() => _loadingApi = false);
+    }
+  }
+
   int get _cartQty => _cart.fold(0, (s, x) => s + x.q);
   int get _cartTotal => _cart.fold(0, (s, x) => s + x.price * x.q);
 
@@ -607,19 +651,46 @@ class _MainAppState extends State<MainApp> {
   Widget _row(String l, String r, {Color c = AppTheme.tm}) => Padding(padding: const EdgeInsets.only(bottom: 2),
     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(l, style: TextStyle(fontSize: 10, color: c)), Text(r, style: TextStyle(fontSize: 10, color: c))]));
 
-  void _showCheckout() {
+  void _showCheckout() async {
+    String folio = '';
+    // Send order to API when online
+    if (_online) {
+      final groups = <String, List<CartItem>>{};
+      for (var it in _cart) { groups.putIfAbsent(it.from, () => []).add(it); }
+      final envios = groups.keys.length * 35;
+      final addr = addrs[_addrIdx];
+
+      final res = await ApiService.crearPedidoFarmacia(
+        clienteNombre: 'Chule',
+        clienteTelefono: '7711234567',
+        clienteDireccion: addr.a,
+        clienteCp: '43600',
+        subtotal: _cartTotal.toDouble(),
+        costoEnvio: envios.toDouble(),
+        total: (_cartTotal + envios).toDouble(),
+        items: _cart.map((c) => {
+          'producto_id': 0,
+          'cantidad': c.q,
+          'precio': c.price.toDouble(),
+        }).toList(),
+      );
+      folio = res?['folio'] ?? '';
+    }
+
+    if (!mounted) return;
     showDialog(context: context, builder: (_) => AlertDialog(backgroundColor: AppTheme.sf, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
         const Text('🚀', style: TextStyle(fontSize: 50)),
         const SizedBox(height: 12),
         const Text('¡Pedido Confirmado!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.tx)),
         const SizedBox(height: 8),
-        Text('Tu pedido está siendo preparado', style: TextStyle(color: AppTheme.tm, fontSize: 11)),
+        if (folio.isNotEmpty) Text('Folio: $folio', style: TextStyle(color: AppTheme.ac, fontSize: 13, fontWeight: FontWeight.w700)),
+        Text(folio.isNotEmpty ? 'Enviado a la API' : 'Tu pedido está siendo preparado', style: TextStyle(color: AppTheme.tm, fontSize: 11)),
         const SizedBox(height: 12),
         Text('Tiempo estimado: 25-45 min', style: TextStyle(color: AppTheme.tm, fontSize: 10)),
         const SizedBox(height: 16),
         SizedBox(width: double.infinity, child: ElevatedButton(
-          onPressed: () { Navigator.pop(context); setState(() => _tab = 0); },
+          onPressed: () { Navigator.pop(context); setState(() => _tab = 0); _loadApiData(); },
           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.ac, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
           child: const Text('← Volver al inicio', style: TextStyle(color: Colors.white)),
         )),
@@ -681,7 +752,26 @@ class _MainAppState extends State<MainApp> {
   // ═══ DASHBOARD ═══
   Widget _dashScreen() {
     final allNegs = [...negHidalgo, ...negCdmx];
+    // Use API stats if available, otherwise hardcoded
+    final sEntregas = _online ? '${_apiStats['envios_hoy'] ?? 0}' : '47';
+    final sIngresos = _online ? '\$${((_apiStats['ingresos_hoy'] ?? 0) / 1000).toStringAsFixed(1)}k' : '\$98.2k';
+    final sProductos = _online ? '${_apiFarmProductos.length}+' : '77K+';
+    final sNegocios = _online ? '${_apiNegocios.isNotEmpty ? _apiNegocios.length : allNegs.length}' : '${allNegs.length}';
+
     return ListView(padding: const EdgeInsets.all(14), children: [
+      // Connection indicator
+      GestureDetector(onTap: _loadApiData,
+        child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
+            color: _online ? AppTheme.gr.withOpacity(0.1) : AppTheme.rd.withOpacity(0.1)),
+          child: Row(children: [
+            Icon(_online ? Icons.cloud_done : Icons.cloud_off, size: 14, color: _online ? AppTheme.gr : AppTheme.rd),
+            const SizedBox(width: 6),
+            Text(_online ? 'Conectado a Cargo-GO API' : 'Sin conexión · Datos locales', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: _online ? AppTheme.gr : AppTheme.rd)),
+            const Spacer(),
+            if (_loadingApi) SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5, color: _online ? AppTheme.gr : AppTheme.rd))
+            else Icon(Icons.refresh, size: 14, color: _online ? AppTheme.gr : AppTheme.rd),
+          ]))),
       // Saturnos + Quick menus
       GestureDetector(onTap: () => setState(() => _menuScreen = 'farmacia'),
         child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
@@ -695,12 +785,12 @@ class _MainAppState extends State<MainApp> {
             ]),
           ]))),
       const SizedBox(height: 12),
-      // Stats
+      // Stats - uses API data when online
       Row(children: [
-        _stat('Entregas', '47', Icons.local_shipping, AppTheme.ac),
-        _stat('Ingresos', '\$98.2k', Icons.trending_up, AppTheme.gr),
-        _stat('Productos', '77K+', Icons.medication, AppTheme.tl),
-        _stat('Negocios', '${allNegs.length}', Icons.store, AppTheme.or),
+        _stat('Entregas', sEntregas, Icons.local_shipping, AppTheme.ac),
+        _stat('Ingresos', sIngresos, Icons.trending_up, AppTheme.gr),
+        _stat('Productos', sProductos, Icons.medication, AppTheme.tl),
+        _stat('Negocios', sNegocios, Icons.store, AppTheme.or),
       ]),
       const SizedBox(height: 12),
       // Quick access menus
@@ -849,9 +939,16 @@ class _MainAppState extends State<MainApp> {
 
   // ═══ FARMACIA ═══
   Widget _farmScreen() {
+    // Use API products when online, otherwise local data
+    final useApi = _online && _apiFarmProductos.isNotEmpty;
+
     return Scaffold(backgroundColor: AppTheme.bg,
       appBar: AppBar(backgroundColor: AppTheme.sf, leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() => _menuScreen = null)),
-        title: const Text('💊 Farmacias Madrid', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700))),
+        title: const Text('💊 Farmacias Madrid', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+        actions: [
+          if (_online) Padding(padding: const EdgeInsets.only(right: 8),
+            child: Icon(Icons.cloud_done, size: 16, color: AppTheme.gr)),
+        ]),
       body: ListView(padding: const EdgeInsets.all(12), children: [
         // Saturnos banner
         Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
@@ -864,37 +961,77 @@ class _MainAppState extends State<MainApp> {
             Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)),
               child: const Text('-35%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white))),
           ])),
+        if (useApi) ...[
+          Padding(padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text('${_apiFarmProductos.length} productos desde la API', style: TextStyle(fontSize: 9, color: AppTheme.gr, fontWeight: FontWeight.w600))),
+        ],
         const SizedBox(height: 10),
-        ...farmacia.map((p) {
-          final cc = {'bio': AppTheme.pu, 'onc': const Color(0xFFE91E63), 'esp': AppTheme.cy, 'gen': AppTheme.gr, 'pat': AppTheme.ac}[p.cat] ?? AppTheme.gr;
-          final ce = {'bio': '🧬', 'onc': '🎗️', 'esp': '⚡', 'gen': '💊', 'pat': '🏷️'}[p.cat] ?? '💊';
-          return Container(margin: const EdgeInsets.only(bottom: 5), padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.bd),
-              boxShadow: [BoxShadow(color: cc.withOpacity(0.05), blurRadius: 4, offset: const Offset(-3, 0))]),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Text(ce, style: const TextStyle(fontSize: 12)),
-                const SizedBox(width: 4),
-                Expanded(child: Text(p.n, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx))),
-                if (p.rx) Text('℞', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.or)),
-              ]),
-              Text('${p.lab} · Stock: ${p.stock}', style: TextStyle(fontSize: 9, color: AppTheme.tm)),
-              const SizedBox(height: 4),
-              Row(children: [
-                Text('\$${p.lista}', style: TextStyle(fontSize: 10, color: AppTheme.td, decoration: TextDecoration.lineThrough, fontFamily: 'monospace')),
-                const SizedBox(width: 8),
-                Text('\$${p.oferta}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
-                const SizedBox(width: 6),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1), decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
-                  child: const Text('-35%', style: TextStyle(fontSize: 7, fontWeight: FontWeight.w700, color: AppTheme.gr))),
-                const Spacer(),
-                ElevatedButton(onPressed: () => _addToCart(p.n, p.lista, 'Farmacias Madrid', oferta: p.oferta),
-                  style: ElevatedButton.styleFrom(backgroundColor: cc.withOpacity(0.12), foregroundColor: cc, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)), elevation: 0, minimumSize: Size.zero),
-                  child: const Text('+Agregar', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600))),
-              ]),
-            ]));
-        }),
+        // Show API products when available
+        if (useApi)
+          ..._apiFarmProductos.map((p) {
+            final precio = (p['precio'] ?? 0).toDouble();
+            final oferta = p['precioOferta'] != null ? (p['precioOferta']).toDouble() : null;
+            final descuento = oferta != null && precio > 0 ? ((1 - oferta / precio) * 100).round() : 0;
+            return Container(margin: const EdgeInsets.only(bottom: 5), padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.bd)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const Text('💊', style: TextStyle(fontSize: 12)),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(p['nombre'] ?? '', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx))),
+                ]),
+                Text('${p['laboratorio'] ?? ''} · Stock: ${p['stock'] ?? 0}', style: TextStyle(fontSize: 9, color: AppTheme.tm)),
+                const SizedBox(height: 4),
+                Row(children: [
+                  if (oferta != null) ...[
+                    Text('\$${precio.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: AppTheme.td, decoration: TextDecoration.lineThrough, fontFamily: 'monospace')),
+                    const SizedBox(width: 8),
+                    Text('\$${oferta.toStringAsFixed(0)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
+                    const SizedBox(width: 6),
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1), decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+                      child: Text('-$descuento%', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.w700, color: AppTheme.gr))),
+                  ] else
+                    Text('\$${precio.toStringAsFixed(0)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
+                  const Spacer(),
+                  ElevatedButton(onPressed: () => _addToCart(p['nombre'] ?? '', precio.round(), 'Farmacias Madrid', oferta: oferta?.round()),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gr.withOpacity(0.12), foregroundColor: AppTheme.gr, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)), elevation: 0, minimumSize: Size.zero),
+                    child: const Text('+Agregar', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600))),
+                ]),
+              ]));
+          })
+        else
+          // Fallback: local hardcoded data
+          ...farmacia.map((p) {
+            final cc = {'bio': AppTheme.pu, 'onc': const Color(0xFFE91E63), 'esp': AppTheme.cy, 'gen': AppTheme.gr, 'pat': AppTheme.ac}[p.cat] ?? AppTheme.gr;
+            final ce = {'bio': '🧬', 'onc': '🎗️', 'esp': '⚡', 'gen': '💊', 'pat': '🏷️'}[p.cat] ?? '💊';
+            return Container(margin: const EdgeInsets.only(bottom: 5), padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.bd),
+                boxShadow: [BoxShadow(color: cc.withOpacity(0.05), blurRadius: 4, offset: const Offset(-3, 0))]),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Text(ce, style: const TextStyle(fontSize: 12)),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(p.n, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx))),
+                  if (p.rx) Text('℞', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.or)),
+                ]),
+                Text('${p.lab} · Stock: ${p.stock}', style: TextStyle(fontSize: 9, color: AppTheme.tm)),
+                const SizedBox(height: 4),
+                Row(children: [
+                  Text('\$${p.lista}', style: TextStyle(fontSize: 10, color: AppTheme.td, decoration: TextDecoration.lineThrough, fontFamily: 'monospace')),
+                  const SizedBox(width: 8),
+                  Text('\$${p.oferta}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
+                  const SizedBox(width: 6),
+                  Container(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1), decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+                    child: const Text('-35%', style: TextStyle(fontSize: 7, fontWeight: FontWeight.w700, color: AppTheme.gr))),
+                  const Spacer(),
+                  ElevatedButton(onPressed: () => _addToCart(p.n, p.lista, 'Farmacias Madrid', oferta: p.oferta),
+                    style: ElevatedButton.styleFrom(backgroundColor: cc.withOpacity(0.12), foregroundColor: cc, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)), elevation: 0, minimumSize: Size.zero),
+                    child: const Text('+Agregar', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600))),
+                ]),
+              ]));
+          }),
       ]),
       floatingActionButton: _cartQty > 0 ? FloatingActionButton.extended(onPressed: _openCart, backgroundColor: AppTheme.gr,
         icon: const Icon(Icons.shopping_cart, color: Colors.white, size: 18),
