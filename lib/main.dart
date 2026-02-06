@@ -414,31 +414,8 @@ class _LoginState extends State<LoginScreen> {
         decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF0A1628), Color(0xFF060B18), Color(0xFF0D0B20)])),
         child: SafeArea(child: Center(child: SingleChildScrollView(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16), child: Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 24),
-          // ═══ LOGO CARGO-GO (replica exacta React Native) ═══
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(color: const Color(0xFF0E1A2E), borderRadius: BorderRadius.circular(20)),
-            child: Column(children: [
-              Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [
-                const Text('🚛', style: TextStyle(fontSize: 36)),
-                const SizedBox(width: 8),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  RichText(text: const TextSpan(children: [
-                    TextSpan(text: 'Cargo', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: Colors.white)),
-                    TextSpan(text: '-', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: Color(0xFFFF4757))),
-                    TextSpan(text: 'GO', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: Color(0xFFFFA502))),
-                  ])),
-                  const Text('Movemos la ciudad por ti', style: TextStyle(fontSize: 11, color: Colors.white70, fontStyle: FontStyle.italic)),
-                ]),
-              ]),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(color: const Color(0xFF1C2D4A), borderRadius: BorderRadius.circular(20)),
-                child: const Text('Envios y compras locales · CDMX ↔ Hidalgo', style: TextStyle(fontSize: 10, color: Color(0xFF8899B4))),
-              ),
-            ]),
-          ),
+          // ═══ LOGO CARGO-GO (imagen real) ═══
+          Image.asset('assets/images/logo.png', width: 260),
           const SizedBox(height: 40),
 
           if (step == 0) ...[
