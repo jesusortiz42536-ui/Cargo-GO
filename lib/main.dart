@@ -1275,25 +1275,25 @@ class _MainAppState extends State<MainApp> {
     final el = {'ruta': 'En Ruta', 'prep': 'Preparando', 'ok': 'Entregado'};
     final ei = {'ruta': Icons.local_shipping, 'prep': Icons.access_time, 'ok': Icons.check_circle};
     return Container(margin: const EdgeInsets.only(bottom: 6), padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.bd)),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade200)),
       child: Row(children: [
         Container(width: 32, height: 32, decoration: BoxDecoration(color: ec[p.est]!.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
           child: Icon(ei[p.est], size: 16, color: ec[p.est])),
         const SizedBox(width: 8),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(p.id, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+            Text(p.id, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.black87)),
             Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1), decoration: BoxDecoration(color: ec[p.est]!.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
               child: Text(el[p.est]!, style: TextStyle(fontSize: 8, fontWeight: FontWeight.w600, color: ec[p.est]))),
           ]),
-          Text('${p.orig} → ${p.dest}', style: TextStyle(fontSize: 9, color: AppTheme.tm)),
+          Text('${p.orig} → ${p.dest}', style: const TextStyle(fontSize: 9, color: Colors.black54)),
           if (p.prog > 0 && p.prog < 100) ...[
             const SizedBox(height: 3),
             ClipRRect(borderRadius: BorderRadius.circular(1), child: LinearProgressIndicator(value: p.prog / 100, backgroundColor: ec[p.est]!.withOpacity(0.1), color: ec[p.est], minHeight: 2)),
           ],
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('${p.cl} · ${p.h}', style: TextStyle(fontSize: 9, color: AppTheme.td)),
-            Text('\$${p.m}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.gr, fontFamily: 'monospace')),
+            Text('${p.cl} · ${p.h}', style: const TextStyle(fontSize: 9, color: Colors.black45)),
+            Text('\$${p.m}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.gr, fontFamily: 'monospace')),
           ]),
         ])),
       ]));
