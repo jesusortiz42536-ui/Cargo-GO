@@ -920,8 +920,26 @@ class _MainAppState extends State<MainApp> {
     child: Row(children: [
       _navBtn(0, Icons.dashboard_rounded, 'Inicio'),
       _navBtn(1, Icons.store_rounded, 'Negocios'),
-      _navBtn(2, Icons.local_shipping_rounded, 'Pedidos'),
-      _navBtn(3, Icons.fire_truck_rounded, 'Mudanzas'),
+      // Pedidos - botón redondo sobresaliente con rayo
+      Expanded(child: GestureDetector(
+        onTap: () => setState(() => _tab = 2),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Transform.translate(offset: const Offset(0, -14), child: Container(
+            width: 50, height: 50,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(colors: [
+                _tab == 2 ? const Color(0xFF1877F2) : Colors.grey.shade400,
+                _tab == 2 ? const Color(0xFF42A5F5) : Colors.grey.shade300,
+              ], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              boxShadow: [BoxShadow(color: (_tab == 2 ? const Color(0xFF1877F2) : Colors.grey).withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 3))],
+            ),
+            child: const Icon(Icons.bolt_rounded, size: 28, color: Colors.white),
+          )),
+          Transform.translate(offset: const Offset(0, -10), child: Text('Pedidos', style: TextStyle(fontSize: 9, color: _tab == 2 ? const Color(0xFF1877F2) : Colors.grey.shade400, fontWeight: _tab == 2 ? FontWeight.w700 : FontWeight.w400))),
+        ]),
+      )),
+      _navBtn(3, Icons.local_shipping_rounded, 'Mudanzas'),
       _navBtn(4, Icons.person_rounded, 'Perfil'),
     ]),
   );
