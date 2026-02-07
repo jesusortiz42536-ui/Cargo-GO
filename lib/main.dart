@@ -375,8 +375,59 @@ class CargoGoApp extends StatelessWidget {
     title: 'Cargo-GO',
     debugShowCheckedModeBanner: false,
     theme: ThemeData.dark().copyWith(scaffoldBackgroundColor: AppTheme.bg),
-    home: const LoginScreen(),
+    home: const SplashScreen(),
   );
+}
+
+// ═══ SPLASH SCREEN ═══
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+  @override State<SplashScreen> createState() => _SplashState();
+}
+class _SplashState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _fadeIn;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
+    _fadeIn = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _ctrl, curve: const Interval(0, 0.6, curve: Curves.easeOut)));
+    _scale = Tween<double>(begin: 0.8, end: 1).animate(CurvedAnimation(parent: _ctrl, curve: const Interval(0, 0.6, curve: Curves.easeOutBack)));
+    _ctrl.forward();
+    Future.delayed(const Duration(milliseconds: 2500), () {
+      if (!mounted) return;
+      Navigator.pushReplacement(context, PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const LoginScreen(),
+        transitionDuration: const Duration(milliseconds: 500),
+        transitionsBuilder: (_, a, __, child) => FadeTransition(opacity: a, child: child),
+      ));
+    });
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+          colors: [Color(0xFF0A1628), Color(0xFF060B18), Color(0xFF0D0B20)])),
+        child: Center(child: AnimatedBuilder(
+          animation: _ctrl,
+          builder: (_, __) => Opacity(opacity: _fadeIn.value, child: Transform.scale(scale: _scale.value,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Image.asset('assets/images/logo.png', width: 280),
+              const SizedBox(height: 30),
+              SizedBox(width: 40, height: 40, child: CircularProgressIndicator(
+                strokeWidth: 2, color: AppTheme.ac.withOpacity(_fadeIn.value))),
+            ]))),
+        )),
+      ),
+    );
+  }
 }
 
 // ═══ LOGIN ═══
