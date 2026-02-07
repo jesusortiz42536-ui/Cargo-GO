@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/api_service.dart';
 
 class AppTheme {
@@ -591,10 +593,50 @@ class _MainAppState extends State<MainApp> {
   List<Map<String, dynamic>> _apiPedidos = [];
   List<Map<String, dynamic>> _apiHistorial = [];
 
+  // ═══ NOTIFICACIONES ═══
+  final List<Notif> _notifs = [
+    Notif(t: 'Pedido CGO-2601 en ruta', d: 'Tu pedido salió de Farmacias Madrid', time: 'Hace 5 min'),
+    Notif(t: 'Oferta Farmacia', d: '-35% en medicamentos genéricos hoy', time: 'Hace 30 min'),
+    Notif(t: 'Nuevo negocio', d: 'Tacos Don Pepe se unió a Cargo-GO', time: 'Hace 1h'),
+  ];
+  int get _unreadNotifs => _notifs.where((n) => !n.read).length;
+
   @override
   void initState() {
     super.initState();
-    // API data loads when user taps connection indicator, not on startup
+    _loadCache(); // 8. Cargar cache al iniciar
+  }
+
+  // ═══ 8. CACHE OFFLINE ═══
+  Future<void> _loadCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('api_cache');
+      if (cached != null) {
+        final data = json.decode(cached) as Map<String, dynamic>;
+        if (!mounted) return;
+        setState(() {
+          _apiStats = (data['stats'] as Map<String, dynamic>?) ?? {};
+          _apiNegocios = List<Map<String, dynamic>>.from(data['negocios'] ?? []);
+          _apiFarmProductos = List<Map<String, dynamic>>.from(data['productos'] ?? []);
+          _apiOfertas = List<Map<String, dynamic>>.from(data['ofertas'] ?? []);
+          _apiHistorial = List<Map<String, dynamic>>.from(data['historial'] ?? []);
+        });
+        debugPrint('[CGO] Cache loaded');
+      }
+    } catch (e) { debugPrint('[CGO] Cache load error: $e'); }
+  }
+
+  Future<void> _saveCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('api_cache', json.encode({
+        'stats': _apiStats, 'negocios': _apiNegocios,
+        'productos': _apiFarmProductos, 'ofertas': _apiOfertas,
+        'historial': _apiHistorial,
+      }));
+      debugPrint('[CGO] Cache saved');
+    } catch (e) { debugPrint('[CGO] Cache save error: $e'); }
   }
 
   Future<void> _loadApiData() async {
@@ -622,6 +664,7 @@ class _MainAppState extends State<MainApp> {
           _apiHistorial = historial;
           _loadingApi = false;
         });
+        _saveCache(); // 8. Guardar cache
       } else {
         if (!mounted) return;
         setState(() => _loadingApi = false);
@@ -647,10 +690,42 @@ class _MainAppState extends State<MainApp> {
             const SizedBox(width: 4),
             Text('$_cartQty', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.gr)),
           ]))),
-      if (_cartQty == 0) GestureDetector(onTap: _loadApiData,
+      // 2. Campana de notificaciones
+      GestureDetector(onTap: _showNotifs, child: Stack(children: [
+        const Icon(Icons.notifications_outlined, size: 22, color: AppTheme.tm),
+        if (_unreadNotifs > 0) Positioned(right: 0, top: 0, child: Container(width: 14, height: 14,
+          decoration: const BoxDecoration(color: AppTheme.rd, shape: BoxShape.circle),
+          child: Center(child: Text('$_unreadNotifs', style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white))))),
+      ])),
+      const SizedBox(width: 10),
+      GestureDetector(onTap: _loadApiData,
         child: Icon(_online ? Icons.cloud_done : Icons.cloud_off, size: 18, color: _online ? AppTheme.gr : AppTheme.rd)),
     ]),
   );
+
+  void _showNotifs() {
+    showModalBottomSheet(context: context, backgroundColor: AppTheme.sf,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => Container(padding: const EdgeInsets.all(16), child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          const Text('Notificaciones', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.tx)),
+          TextButton(onPressed: () { setState(() { for (var n in _notifs) n.read = true; }); Navigator.pop(context); },
+            child: const Text('Marcar leídas', style: TextStyle(fontSize: 10, color: AppTheme.ac))),
+        ]),
+        const SizedBox(height: 8),
+        ..._notifs.map((n) => Container(margin: const EdgeInsets.only(bottom: 6), padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: n.read ? AppTheme.cd : AppTheme.ac.withOpacity(0.06), borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: n.read ? AppTheme.bd : AppTheme.ac.withOpacity(0.2))),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              if (!n.read) Container(width: 6, height: 6, margin: const EdgeInsets.only(right: 6), decoration: const BoxDecoration(color: AppTheme.ac, shape: BoxShape.circle)),
+              Expanded(child: Text(n.t, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx))),
+              Text(n.time, style: const TextStyle(fontSize: 8, color: AppTheme.td)),
+            ]),
+            Text(n.d, style: const TextStyle(fontSize: 9, color: AppTheme.tm)),
+          ]))),
+      ])));
+  }
 
   int get _cartQty => _cart.fold(0, (s, x) => s + x.q);
   int get _cartTotal => _cart.fold(0, (s, x) => s + x.price * x.q);
@@ -807,7 +882,10 @@ class _MainAppState extends State<MainApp> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(child: _menuScreen != null ? _buildMenuScreen() : _buildScreen()),
+      body: SafeArea(child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: _menuScreen != null ? _buildMenuScreen() : _buildScreen(),
+      )),
       bottomNavigationBar: _menuScreen != null ? null : _buildNav(),
       floatingActionButton: _cartQty > 0 ? FloatingActionButton.extended(
         onPressed: _openCart, backgroundColor: AppTheme.gr,
@@ -836,14 +914,16 @@ class _MainAppState extends State<MainApp> {
     ]))));
 
   Widget _buildScreen() {
+    Widget screen;
     switch (_tab) {
-      case 0: return _dashScreen();
-      case 1: return _negScreen();
-      case 2: return _pedScreen();
-      case 3: return _mapScreen();
-      case 4: return _perfScreen();
-      default: return _dashScreen();
+      case 0: screen = _dashScreen(); break;
+      case 1: screen = _negScreen(); break;
+      case 2: screen = _pedScreen(); break;
+      case 3: screen = _mapScreen(); break;
+      case 4: screen = _perfScreen(); break;
+      default: screen = _dashScreen();
     }
+    return KeyedSubtree(key: ValueKey(_tab), child: screen);
   }
 
   Widget _buildMenuScreen() {
@@ -864,7 +944,8 @@ class _MainAppState extends State<MainApp> {
     final sProductos = _online ? '${_apiFarmProductos.length}+' : '77K+';
     final sNegocios = _online ? '${_apiNegocios.isNotEmpty ? _apiNegocios.length : allNegs.length}' : '${allNegs.length}';
 
-    return ListView(padding: const EdgeInsets.all(14), children: [
+    return RefreshIndicator(onRefresh: _loadApiData, color: AppTheme.ac,
+      child: ListView(padding: const EdgeInsets.all(14), children: [
       _logoBar(),
       // Connection indicator
       GestureDetector(onTap: _loadApiData,
@@ -930,7 +1011,7 @@ class _MainAppState extends State<MainApp> {
         TextButton(onPressed: () => setState(() => _tab = 2), child: Text('Ver todos →', style: TextStyle(fontSize: 10, color: AppTheme.ac))),
       ]),
       ...pedidos.where((p) => p.est != 'ok').take(4).map(_pedCard),
-    ]);
+    ]));
   }
 
   Widget _stat(String l, String v, IconData ic, Color c) => Expanded(child: Container(margin: const EdgeInsets.symmetric(horizontal: 3),
@@ -956,7 +1037,8 @@ class _MainAppState extends State<MainApp> {
       return mq && mt;
     }).toList();
 
-    return ListView(padding: const EdgeInsets.all(14), children: [
+    return RefreshIndicator(onRefresh: _loadApiData, color: AppTheme.ac,
+      child: ListView(padding: const EdgeInsets.all(14), children: [
       _logoBar(),
       // City filter
       Row(children: [
@@ -1003,7 +1085,7 @@ class _MainAppState extends State<MainApp> {
                   child: Text(_favs.contains(n.id) ? '❤️' : '🤍', style: const TextStyle(fontSize: 14)))),
               ])));
         }),
-    ]);
+    ]));
   }
 
   Widget _cityBtn(String k, String l) => Expanded(child: GestureDetector(onTap: () => setState(() => _negCity = k),
@@ -1046,6 +1128,21 @@ class _MainAppState extends State<MainApp> {
   }
 
   // ═══ FARMACIA ═══
+  String _farmSearch = '';
+  List<Map<String, dynamic>> _farmSearchResults = [];
+  bool _farmSearching = false;
+
+  void _searchFarmacia(String q) async {
+    setState(() { _farmSearch = q; _farmSearching = true; });
+    if (_online && q.length >= 2) {
+      final results = await ApiService.buscarFarmacia(q);
+      if (!mounted) return;
+      setState(() { _farmSearchResults = results; _farmSearching = false; });
+    } else {
+      setState(() => _farmSearching = false);
+    }
+  }
+
   Widget _farmScreen() {
     final useApi = _online && _apiFarmProductos.isNotEmpty;
 
@@ -1061,6 +1158,29 @@ class _MainAppState extends State<MainApp> {
             child: Icon(Icons.cloud_done, size: 16, color: AppTheme.gr)),
         ]),
       body: ListView(padding: const EdgeInsets.all(12), children: [
+        // 3. Barra de búsqueda
+        TextField(onChanged: _searchFarmacia, style: const TextStyle(color: AppTheme.tx, fontSize: 12),
+          decoration: InputDecoration(hintText: 'Buscar medicamento...', hintStyle: const TextStyle(color: AppTheme.td),
+            prefixIcon: const Icon(Icons.search, color: AppTheme.td, size: 18),
+            suffixIcon: _farmSearching ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.ac))) : null,
+            filled: true, fillColor: AppTheme.cd, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppTheme.bd)),
+            contentPadding: const EdgeInsets.symmetric(vertical: 10))),
+        if (_farmSearch.isNotEmpty && _farmSearchResults.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text('${_farmSearchResults.length} resultados para "$_farmSearch"', style: const TextStyle(fontSize: 9, color: AppTheme.tm)),
+          const SizedBox(height: 4),
+          ..._farmSearchResults.take(20).map((p) => Container(margin: const EdgeInsets.only(bottom: 4), padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.ac.withOpacity(0.2))),
+            child: Row(children: [
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(p['nombre'] ?? '', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.tx), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text('${p['laboratorio'] ?? ''} · Stock: ${p['stock'] ?? 0}', style: const TextStyle(fontSize: 8, color: AppTheme.tm)),
+              ])),
+              Text('\$${p['precio'] ?? 0}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
+            ]))),
+          const Divider(color: AppTheme.bd, height: 20),
+        ],
+        const SizedBox(height: 8),
         // Saturnos banner
         Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
           gradient: const LinearGradient(colors: [AppTheme.tl, Color(0xFF004D40)])),
@@ -1113,7 +1233,8 @@ class _MainAppState extends State<MainApp> {
   // ═══ PEDIDOS ═══
   Widget _pedScreen() {
     final fp = _pedFilter == 'all' ? pedidos : pedidos.where((p) => p.city == _pedFilter).toList();
-    return ListView(padding: const EdgeInsets.all(14), children: [
+    return RefreshIndicator(onRefresh: _loadApiData, color: AppTheme.ac,
+      child: ListView(padding: const EdgeInsets.all(14), children: [
       _logoBar(),
       Row(children: [for (var f in [['all','Todos'],['hidalgo','Hidalgo'],['cdmx','CDMX']])
         Expanded(child: GestureDetector(onTap: () => setState(() => _pedFilter = f[0]),
@@ -1142,7 +1263,7 @@ class _MainAppState extends State<MainApp> {
           ])),
           Text('\$${o.tot}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
         ]))),
-    ]);
+    ]));
   }
 
   Widget _pedStat(String l, int v, Color c) => Expanded(child: Container(margin: const EdgeInsets.symmetric(horizontal: 3), padding: const EdgeInsets.all(10),
@@ -1211,10 +1332,11 @@ class _MainAppState extends State<MainApp> {
   ]);
 
   Widget _mapCity(String n, String count, Color c) => Column(children: [
-    Container(width: 14, height: 14, decoration: BoxDecoration(shape: BoxShape.circle, color: c)),
+    Container(width: 20, height: 20, decoration: BoxDecoration(shape: BoxShape.circle, color: c,
+      boxShadow: [BoxShadow(color: c.withOpacity(0.5), blurRadius: 10, spreadRadius: 2)])),
     const SizedBox(height: 4),
-    Text(n, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
-    Text('$count negocios', style: TextStyle(fontSize: 8, color: AppTheme.tm)),
+    Text(n, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+    Text('$count negocios', style: const TextStyle(fontSize: 8, color: AppTheme.tm)),
   ]);
 
   // ═══ PERFIL ═══
