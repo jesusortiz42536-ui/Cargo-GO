@@ -918,24 +918,37 @@ class _MainAppState extends State<MainApp> {
   }
 
   Widget _buildNav() => Container(
-    decoration: const BoxDecoration(color: AppTheme.sf, border: Border(top: BorderSide(color: AppTheme.bd, width: 0.5))),
+    margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+    decoration: BoxDecoration(
+      color: AppTheme.cd,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: AppTheme.bd, width: 0.5),
+      boxShadow: [
+        BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 20, offset: const Offset(0, -4)),
+        BoxShadow(color: AppTheme.ac.withOpacity(0.08), blurRadius: 30, spreadRadius: -5),
+      ],
+    ),
     child: Row(children: [
       _navBtn(0, Icons.home_filled, 'Inicio'),
       _navBtn(1, Icons.store_rounded, 'Negocios'),
-      // Botón central redondo sobresaliente con +
+      // Botón central flotante con rayo
       Expanded(child: GestureDetector(
         onTap: () => setState(() => _tab = 2),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Transform.translate(offset: const Offset(0, -16), child: Container(
-            width: 52, height: 52,
+          Transform.translate(offset: const Offset(0, -22), child: Container(
+            width: 56, height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppTheme.ac,
-              boxShadow: [BoxShadow(color: AppTheme.ac.withOpacity(0.5), blurRadius: 12, offset: const Offset(0, 4))],
+              gradient: const LinearGradient(colors: [Color(0xFF2D7AFF), Color(0xFF00B4FF)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              border: Border.all(color: AppTheme.cd, width: 4),
+              boxShadow: [
+                BoxShadow(color: const Color(0xFF2D7AFF).withOpacity(0.5), blurRadius: 16, spreadRadius: 2, offset: const Offset(0, 4)),
+                BoxShadow(color: const Color(0xFF00B4FF).withOpacity(0.3), blurRadius: 24, spreadRadius: -2),
+              ],
             ),
-            child: const Icon(Icons.bolt_rounded, size: 28, color: Colors.white),
+            child: const Icon(Icons.bolt_rounded, size: 30, color: Colors.white),
           )),
-          Transform.translate(offset: const Offset(0, -10), child: Text('Pedidos', style: TextStyle(fontSize: 9, color: _tab == 2 ? AppTheme.ac : AppTheme.td, fontWeight: _tab == 2 ? FontWeight.w700 : FontWeight.w400))),
+          Transform.translate(offset: const Offset(0, -14), child: Text('Pedidos', style: TextStyle(fontSize: 9, color: _tab == 2 ? AppTheme.ac : AppTheme.td, fontWeight: _tab == 2 ? FontWeight.w700 : FontWeight.w400))),
         ]),
       )),
       _navBtn(3, Icons.local_shipping_rounded, 'Mudanzas'),
@@ -943,13 +956,23 @@ class _MainAppState extends State<MainApp> {
     ]),
   );
 
-  Widget _navBtn(int i, IconData ic, String l) => Expanded(child: InkWell(
-    onTap: () => setState(() => _tab = i),
-    child: Padding(padding: const EdgeInsets.symmetric(vertical: 10), child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Icon(ic, size: 22, color: _tab == i ? AppTheme.ac : AppTheme.td),
-      const SizedBox(height: 2),
-      Text(l, style: TextStyle(fontSize: 9, color: _tab == i ? AppTheme.ac : AppTheme.td, fontWeight: _tab == i ? FontWeight.w700 : FontWeight.w400)),
-    ]))));
+  Widget _navBtn(int i, IconData ic, String l) {
+    final bool active = _tab == i;
+    return Expanded(child: InkWell(
+      onTap: () => setState(() => _tab = i),
+      child: Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: active ? AppTheme.ac.withOpacity(0.12) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(ic, size: 22, color: active ? AppTheme.ac : AppTheme.td),
+        ),
+        const SizedBox(height: 3),
+        Text(l, style: TextStyle(fontSize: 9, color: active ? AppTheme.ac : AppTheme.td, fontWeight: active ? FontWeight.w700 : FontWeight.w400)),
+      ]))));
+  }
 
   Widget _buildScreen() {
     Widget screen;
