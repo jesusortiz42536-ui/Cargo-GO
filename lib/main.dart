@@ -915,6 +915,14 @@ class _MainAppState extends State<MainApp> {
     );
   }
 
+  static const _navColors = <int, Color>{
+    0: Color(0xFF1877F2),  // Inicio - azul
+    1: Color(0xFFFF6B00),  // Negocios - naranja
+    2: Color(0xFFFFD600),  // Pedidos - amarillo rayo
+    3: Color(0xFF6A1B9A),  // Mudanzas - morado
+    4: Color(0xFF00897B),  // Perfil - verde
+  };
+
   Widget _buildNav() => Container(
     decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.shade300, width: 0.5))),
     child: Row(children: [
@@ -929,14 +937,14 @@ class _MainAppState extends State<MainApp> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(colors: [
-                _tab == 2 ? const Color(0xFF1877F2) : Colors.grey.shade400,
-                _tab == 2 ? const Color(0xFF42A5F5) : Colors.grey.shade300,
+                _tab == 2 ? const Color(0xFFFFD600) : Colors.grey.shade400,
+                _tab == 2 ? const Color(0xFFFFA000) : Colors.grey.shade300,
               ], begin: Alignment.topLeft, end: Alignment.bottomRight),
-              boxShadow: [BoxShadow(color: (_tab == 2 ? const Color(0xFF1877F2) : Colors.grey).withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 3))],
+              boxShadow: [BoxShadow(color: (_tab == 2 ? const Color(0xFFFFD600) : Colors.grey).withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 3))],
             ),
             child: const Icon(Icons.bolt_rounded, size: 28, color: Colors.white),
           )),
-          Transform.translate(offset: const Offset(0, -10), child: Text('Pedidos', style: TextStyle(fontSize: 9, color: _tab == 2 ? const Color(0xFF1877F2) : Colors.grey.shade400, fontWeight: _tab == 2 ? FontWeight.w700 : FontWeight.w400))),
+          Transform.translate(offset: const Offset(0, -10), child: Text('Pedidos', style: TextStyle(fontSize: 9, color: _tab == 2 ? const Color(0xFFFFA000) : Colors.grey.shade400, fontWeight: _tab == 2 ? FontWeight.w700 : FontWeight.w400))),
         ]),
       )),
       _navBtn(3, Icons.local_shipping_rounded, 'Mudanzas'),
@@ -944,12 +952,15 @@ class _MainAppState extends State<MainApp> {
     ]),
   );
 
-  Widget _navBtn(int i, IconData ic, String l) => Expanded(child: InkWell(
-    onTap: () => setState(() => _tab = i),
-    child: Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Icon(ic, size: 22, color: _tab == i ? const Color(0xFF1877F2) : Colors.grey.shade400),
-      Text(l, style: TextStyle(fontSize: 9, color: _tab == i ? const Color(0xFF1877F2) : Colors.grey.shade400, fontWeight: _tab == i ? FontWeight.w700 : FontWeight.w400)),
-    ]))));
+  Widget _navBtn(int i, IconData ic, String l) {
+    final c = _navColors[i] ?? const Color(0xFF1877F2);
+    return Expanded(child: InkWell(
+      onTap: () => setState(() => _tab = i),
+      child: Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(ic, size: 22, color: _tab == i ? c : Colors.grey.shade400),
+        Text(l, style: TextStyle(fontSize: 9, color: _tab == i ? c : Colors.grey.shade400, fontWeight: _tab == i ? FontWeight.w700 : FontWeight.w400)),
+      ]))));
+  }
 
   Widget _buildScreen() {
     Widget screen;
