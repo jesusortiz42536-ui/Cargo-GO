@@ -704,11 +704,11 @@ class _MainAppState extends State<MainApp> {
             ]))),
       ]),
       const SizedBox(height: 12),
-      // Buscador oscuro estilo screenshot
+      // Buscador outlined
       Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 14),
-        decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.bd)),
+        decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.bd, width: 1.2)),
         child: Row(children: [
           const Icon(Icons.search, size: 20, color: AppTheme.tm),
           const SizedBox(width: 10),
@@ -1059,7 +1059,7 @@ class _MainAppState extends State<MainApp> {
     onTap: () => setState(() => _menuScreen = key),
     child: Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppTheme.bd)),
+      decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: c.withOpacity(0.25), width: 1.2)),
       child: Row(children: [
         Container(width: 48, height: 48,
           decoration: BoxDecoration(color: c.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
