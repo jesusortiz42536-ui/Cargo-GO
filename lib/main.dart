@@ -976,11 +976,11 @@ class _MainAppState extends State<MainApp> {
       ]),
       const SizedBox(height: 12),
       // Negocios destacados
-      _negBtn('💊', 'Mi Farmacia', 'Farmacias Madrid · Medicamentos y más', const Color(0xFF1877F2), 'farmacia'),
+      _farmaciaBtn(),
       const SizedBox(height: 8),
-      _negBtn('🍲', 'El Restaurante de mi Mamá', 'Comida casera · Antojitos mexicanos', const Color(0xFFFF6B35), 'mama'),
+      _negBtn('🍲', 'El Restaurante de mi Mamá', 'Comida casera · Antojitos mexicanos', const Color(0xFFFF6B00), 'mama'),
       const SizedBox(height: 8),
-      _negBtn('🎁', 'Los Regalos Sorpresa de mi Hermana', 'Detalles · Regalos personalizados', const Color(0xFFE91E8C), 'dulce'),
+      _negBtn('🎁', 'Los Regalos Sorpresa de mi Hermana', 'Detalles · Regalos personalizados', const Color(0xFFE91E63), 'dulce'),
       const SizedBox(height: 14),
       // Favs
       if (_favs.isNotEmpty) ...[
@@ -1020,24 +1020,62 @@ class _MainAppState extends State<MainApp> {
     child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: c.withOpacity(0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: c.withOpacity(0.15))),
       child: Column(children: [Text(e, style: const TextStyle(fontSize: 26)), Text(l, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.tx)), Text('Ver menú →', style: TextStyle(fontSize: 8, color: c))]))));
 
+  Widget _farmaciaBtn() => GestureDetector(
+    onTap: () => setState(() => _menuScreen = 'farmacia'),
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFF1565C0), Color(0xFF1E88E5)]),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: const Color(0xFF1565C0).withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 3))],
+      ),
+      child: Row(children: [
+        ClipRRect(borderRadius: BorderRadius.circular(12),
+          child: Image.asset('assets/images/farmacia_logo.png', width: 56, height: 56, fit: BoxFit.cover)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Farmacias Madrid', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
+          const SizedBox(height: 2),
+          Row(children: const [
+            Icon(Icons.star, size: 14, color: Color(0xFFFFD600)),
+            Icon(Icons.star, size: 14, color: Color(0xFFFFD600)),
+            Icon(Icons.star, size: 14, color: Color(0xFFFFD600)),
+            Icon(Icons.star, size: 14, color: Color(0xFFFFD600)),
+            Icon(Icons.star, size: 14, color: Color(0xFFFFD600)),
+            SizedBox(width: 4),
+            Text('5.0', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+          ]),
+          const SizedBox(height: 3),
+          Row(children: const [
+            Icon(Icons.access_time, size: 12, color: Colors.white70),
+            SizedBox(width: 4),
+            Text('Lun-Sáb 8:00 - 21:00', style: TextStyle(fontSize: 11, color: Colors.white70)),
+          ]),
+        ])),
+        const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
+      ]),
+    ),
+  );
+
   Widget _negBtn(String emoji, String title, String sub, Color c, String key) => GestureDetector(
     onTap: () => setState(() => _menuScreen = key),
     child: Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: c.withOpacity(0.3)),
+        gradient: LinearGradient(colors: [c, c.withOpacity(0.8)]),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: c.withOpacity(0.35), blurRadius: 8, offset: const Offset(0, 3))],
       ),
       child: Row(children: [
-        Text(emoji, style: const TextStyle(fontSize: 28)),
+        Text(emoji, style: const TextStyle(fontSize: 30)),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: c)),
-          Text(sub, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+          Text(sub, style: const TextStyle(fontSize: 11, color: Colors.white70)),
         ])),
-        Icon(Icons.arrow_forward_ios, size: 14, color: c),
+        const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
       ]),
     ),
   );
