@@ -715,7 +715,7 @@ class _MainAppState extends State<MainApp> {
           boxShadow: [BoxShadow(color: const Color(0xFF00B4FF).withOpacity(0.15), blurRadius: 8, spreadRadius: 0)],
         ),
         child: Row(children: [
-          const Icon(Icons.search, size: 20, color: Color(0xFF00B4FF)),
+          const Icon(Icons.search, size: 20, color: Color(0xFFFFD600)),
           const SizedBox(width: 10),
           const Expanded(child: Text('Buscar...', style: TextStyle(fontSize: 14, color: Color(0xFF00B4FF)))),
           Container(width: 32, height: 32, decoration: BoxDecoration(color: const Color(0xFF00B4FF).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
