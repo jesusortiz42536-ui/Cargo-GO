@@ -584,9 +584,9 @@ class _MainAppState extends State<MainApp> {
 
   // ═══ LOGO BAR (aparece en todas las pantallas) ═══
   Widget _logoBar() => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.only(bottom: 12),
     child: Row(children: [
-      Image.asset('assets/images/logo.png', height: 128),
+      Image.asset('assets/images/logo.png', height: 45),
       const Spacer(),
       if (_cartQty > 0) GestureDetector(onTap: _openCart,
         child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -596,6 +596,8 @@ class _MainAppState extends State<MainApp> {
             const SizedBox(width: 4),
             Text('$_cartQty', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.gr)),
           ]))),
+      if (_cartQty == 0) GestureDetector(onTap: _loadApiData,
+        child: Icon(_online ? Icons.cloud_done : Icons.cloud_off, size: 18, color: _online ? AppTheme.gr : AppTheme.rd)),
     ]),
   );
 
