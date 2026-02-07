@@ -909,8 +909,8 @@ class _MainAppState extends State<MainApp> {
   Widget _navBtn(int i, IconData ic, String l) => Expanded(child: InkWell(
     onTap: () => setState(() => _tab = i),
     child: Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Icon(ic, size: 22, color: _tab == i ? AppTheme.ac : Colors.grey),
-      Text(l, style: TextStyle(fontSize: 9, color: _tab == i ? AppTheme.ac : Colors.grey, fontWeight: _tab == i ? FontWeight.w700 : FontWeight.w400)),
+      Icon(ic, size: 22, color: _tab == i ? const Color(0xFF1877F2) : Colors.grey.shade400),
+      Text(l, style: TextStyle(fontSize: 9, color: _tab == i ? const Color(0xFF1877F2) : Colors.grey.shade400, fontWeight: _tab == i ? FontWeight.w700 : FontWeight.w400)),
     ]))));
 
   Widget _buildScreen() {
