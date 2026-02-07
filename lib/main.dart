@@ -624,6 +624,11 @@ class _MainAppState extends State<MainApp> {
   Position? _currentPos;
   bool _mapReady = false;
   String _trackFolio = '';
+  bool _showFullMap = false;
+  Map<String, dynamic>? _selectedMapPlace;
+  String _mapFilter = 'all';
+  bool _navModeCar = true;
+  bool _avoidTolls = false;
 
   // ═══ NOTIFICACIONES ═══
   final List<Notif> _notifs = [
@@ -756,28 +761,44 @@ class _MainAppState extends State<MainApp> {
     }
   }
 
+  // ═══ NEGOCIOS MAP DATA (con coordenadas reales) ═══
+  static final List<Map<String, dynamic>> _mapPlaces = [
+    {'id': 'farm', 'nom': 'Farmacias Madrid', 'dir': 'Av. Juárez 123, Centro, Tulancingo', 'tipo': 'farmacia', 'e': '💊', 'lat': 20.0844, 'lng': -98.3815, 'r': 5.0, 'tel': '+527751234567', 'h': 'Lun-Sáb 8:00-21:00', 'dist': '0.5 km', 'tiempo': '3 min'},
+    {'id': 'rest', 'nom': 'El Restaurante de mi Mamá', 'dir': 'Calle Hidalgo 45, Centro, Tulancingo', 'tipo': 'comida', 'e': '🍲', 'lat': 20.0830, 'lng': -98.3790, 'r': 4.9, 'tel': '+527751234568', 'h': 'Lun-Dom 8:00-20:00', 'dist': '0.8 km', 'tiempo': '5 min'},
+    {'id': 'regalo', 'nom': 'Regalos Sorpresa de mi Hermana', 'dir': 'Blvd. Felipe Ángeles 78, Tulancingo', 'tipo': 'regalos', 'e': '🎁', 'lat': 20.0860, 'lng': -98.3850, 'r': 4.8, 'tel': '+527751234569', 'h': 'Lun-Sáb 10:00-19:00', 'dist': '1.2 km', 'tiempo': '8 min'},
+    {'id': 'hq', 'nom': 'Cargo-GO HQ', 'dir': 'Centro, Tulancingo, Hidalgo', 'tipo': 'oficina', 'e': '📦', 'lat': 20.0833, 'lng': -98.3833, 'r': 5.0, 'tel': '+527751234560', 'h': '24/7', 'dist': '0 km', 'tiempo': '0 min'},
+    {'id': 'cdmx', 'nom': 'Hub CDMX', 'dir': 'Col. Centro, Ciudad de México', 'tipo': 'oficina', 'e': '🏙️', 'lat': 19.4326, 'lng': -99.1332, 'r': 4.7, 'tel': '+525512345678', 'h': 'Lun-Vie 7:00-22:00', 'dist': '180 km', 'tiempo': '2h 30min'},
+    {'id': 'costco_sat', 'nom': 'Costco Satélite', 'dir': 'Blvd. Manuel Ávila Camacho, Satélite', 'tipo': 'super', 'e': '🛒', 'lat': 19.5098, 'lng': -99.2338, 'r': 4.7, 'tel': '+525598765432', 'h': 'Lun-Dom 9:00-21:00', 'dist': '165 km', 'tiempo': '2h 15min'},
+    {'id': 'costco_coy', 'nom': 'Costco Coyoacán', 'dir': 'Av. División del Norte, Coyoacán', 'tipo': 'super', 'e': '🛒', 'lat': 19.3437, 'lng': -99.1574, 'r': 4.6, 'tel': '+525598765433', 'h': 'Lun-Dom 9:00-21:00', 'dist': '195 km', 'tiempo': '2h 45min'},
+  ];
+
   // ═══ MAP MARKERS ═══
   void _updateMapMarkers() {
     _markers.clear();
-    // Tulancingo HQ
-    _markers.add(const Marker(
-      markerId: MarkerId('hq_tulancingo'),
-      position: LatLng(20.0833, -98.3833),
-      infoWindow: InfoWindow(title: 'Cargo-GO HQ', snippet: 'Tulancingo, Hidalgo'),
-    ));
-    // CDMX
-    _markers.add(const Marker(
-      markerId: MarkerId('cdmx'),
-      position: LatLng(19.4326, -99.1332),
-      infoWindow: InfoWindow(title: 'CDMX Hub', snippet: 'Ciudad de México'),
-    ));
-    // Farmacias Madrid
-    _markers.add(Marker(
-      markerId: const MarkerId('farmacias_madrid'),
-      position: const LatLng(20.0844, -98.3815),
-      infoWindow: const InfoWindow(title: 'Farmacias Madrid', snippet: 'Tulancingo, Hidalgo'),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-    ));
+    final places = _mapFilter == 'all' ? _mapPlaces :
+      _mapPlaces.where((p) => p['tipo'] == _mapFilter).toList();
+
+    for (final p in places) {
+      final lat = p['lat'] as double;
+      final lng = p['lng'] as double;
+      double hue;
+      switch (p['tipo']) {
+        case 'farmacia': hue = BitmapDescriptor.hueGreen; break;
+        case 'comida': hue = BitmapDescriptor.hueOrange; break;
+        case 'super': hue = BitmapDescriptor.hueBlue; break;
+        case 'regalos': hue = BitmapDescriptor.hueRose; break;
+        case 'oficina': hue = BitmapDescriptor.hueViolet; break;
+        default: hue = BitmapDescriptor.hueRed;
+      }
+      _markers.add(Marker(
+        markerId: MarkerId(p['id']),
+        position: LatLng(lat, lng),
+        infoWindow: InfoWindow(title: p['nom'], snippet: p['dir']),
+        icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+        onTap: () => setState(() => _selectedMapPlace = p),
+      ));
+    }
+
     // Entregas en ruta (de API real)
     for (int i = 0; i < _apiEntregas.length && i < 20; i++) {
       final e = _apiEntregas[i];
@@ -788,11 +809,15 @@ class _MainAppState extends State<MainApp> {
           markerId: MarkerId('entrega_$i'),
           position: LatLng(lat, lng),
           infoWindow: InfoWindow(title: 'Entrega #${e['id'] ?? i}', snippet: e['estado'] ?? ''),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            e['estado'] == 'en_transito' ? BitmapDescriptor.hueOrange : BitmapDescriptor.hueRed),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
+          onTap: () => setState(() => _selectedMapPlace = {
+            'nom': 'Entrega #${e['id']}', 'dir': e['direccion_destino'] ?? '', 'e': '📦',
+            'lat': lat, 'lng': lng, 'tipo': 'entrega', 'estado': e['estado'],
+          }),
         ));
       }
     }
+
     // Mi ubicación
     if (_currentPos != null) {
       _markers.add(Marker(
@@ -1077,6 +1102,8 @@ class _MainAppState extends State<MainApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Full screen map view
+    if (_showFullMap) return _fullMapScreen();
     return Scaffold(
       body: SafeArea(child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
@@ -1169,6 +1196,304 @@ class _MainAppState extends State<MainApp> {
     else if (_menuScreen == 'dulce') { menu = menuDulce; title = '🧁 Dulce María'; from = 'Dulce María'; color = AppTheme.pk; }
     else { return _farmScreen(); }
     return _menuView(title, menu, color, from);
+  }
+
+  // ═══ FULL MAP SCREEN ═══
+  Widget _fullMapScreen() {
+    return Scaffold(
+      backgroundColor: AppTheme.bg,
+      body: Stack(children: [
+        // ── Google Map (full screen) ──
+        GoogleMap(
+          initialCameraPosition: CameraPosition(target: _mapCenter, zoom: 12),
+          markers: _markers,
+          onMapCreated: (controller) {
+            _mapController = controller;
+            _mapReady = true;
+            controller.setMapStyle(_darkMapStyle);
+            _getCurrentLocation();
+            _updateMapMarkers();
+          },
+          myLocationEnabled: true,
+          myLocationButtonEnabled: false,
+          zoomControlsEnabled: false,
+          mapToolbarEnabled: false,
+          compassEnabled: false,
+          onTap: (_) => setState(() => _selectedMapPlace = null),
+        ),
+
+        // ── Top overlay: Search bar + filters ──
+        SafeArea(child: Column(children: [
+          // Search bar like the screenshot
+          Padding(padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.cd.withOpacity(0.95),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: AppTheme.bd, width: 0.5),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
+              ),
+              child: Row(children: [
+                // Back button
+                GestureDetector(
+                  onTap: () => setState(() { _showFullMap = false; _selectedMapPlace = null; }),
+                  child: Container(width: 32, height: 32, decoration: BoxDecoration(
+                    color: AppTheme.ac.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.arrow_back, size: 16, color: AppTheme.ac)),
+                ),
+                const SizedBox(width: 8),
+                // Google pin icon
+                const Icon(Icons.location_on, size: 18, color: Color(0xFF34A853)),
+                const SizedBox(width: 8),
+                // Search field
+                Expanded(child: TextField(
+                  style: const TextStyle(color: AppTheme.tx, fontSize: 13),
+                  decoration: const InputDecoration(
+                    hintText: 'Buscar ubicación...', hintStyle: TextStyle(color: AppTheme.tm, fontSize: 13),
+                    border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 10)),
+                  onSubmitted: (v) {},
+                )),
+                // Mic icon
+                Container(width: 32, height: 32, decoration: BoxDecoration(
+                  color: AppTheme.ac.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.mic, size: 16, color: AppTheme.ac)),
+                const SizedBox(width: 6),
+                // Profile avatar
+                GestureDetector(
+                  onTap: () => setState(() { _showFullMap = false; _tab = 4; }),
+                  child: Container(width: 32, height: 32, decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(colors: [Color(0xFF2D7AFF), Color(0xFF00B4FF)])),
+                    child: const Center(child: Text('J', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)))),
+                ),
+              ]),
+            )),
+          // Category filter pills
+          const SizedBox(height: 8),
+          SingleChildScrollView(scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(children: [
+              _mapFilterPill('all', '📍 Todos', true),
+              _mapFilterPill('farmacia', '💊 Farmacia', false),
+              _mapFilterPill('comida', '🍲 Comida', false),
+              _mapFilterPill('super', '🛒 Super', false),
+              _mapFilterPill('regalos', '🎁 Regalos', false),
+              _mapFilterPill('oficina', '📦 Oficinas', false),
+            ])),
+        ])),
+
+        // ── Floating location button ──
+        Positioned(right: 14, bottom: _selectedMapPlace != null ? 340 : 90,
+          child: Column(children: [
+            GestureDetector(onTap: _getCurrentLocation,
+              child: Container(width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.cd.withOpacity(0.95), shape: BoxShape.circle,
+                  border: Border.all(color: AppTheme.bd, width: 0.5),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8)]),
+                child: const Icon(Icons.my_location, size: 20, color: AppTheme.ac))),
+            const SizedBox(height: 8),
+            GestureDetector(onTap: () => _mapController?.animateCamera(CameraUpdate.zoomIn()),
+              child: Container(width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.cd.withOpacity(0.95), shape: BoxShape.circle,
+                  border: Border.all(color: AppTheme.bd, width: 0.5),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8)]),
+                child: const Icon(Icons.add, size: 20, color: AppTheme.tx))),
+            const SizedBox(height: 8),
+            GestureDetector(onTap: () => _mapController?.animateCamera(CameraUpdate.zoomOut()),
+              child: Container(width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.cd.withOpacity(0.95), shape: BoxShape.circle,
+                  border: Border.all(color: AppTheme.bd, width: 0.5),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8)]),
+                child: const Icon(Icons.remove, size: 20, color: AppTheme.tx))),
+          ])),
+
+        // ── Bottom Sheet: Business info + navigation ──
+        if (_selectedMapPlace != null)
+          Positioned(left: 0, right: 0, bottom: 0,
+            child: _mapBottomSheet(_selectedMapPlace!)),
+      ]),
+    );
+  }
+
+  Widget _mapFilterPill(String tipo, String label, bool isAdd) {
+    final active = _mapFilter == tipo;
+    return Padding(padding: const EdgeInsets.only(right: 6),
+      child: GestureDetector(
+        onTap: () => setState(() { _mapFilter = tipo; _updateMapMarkers(); }),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: active ? AppTheme.ac : AppTheme.cd.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: active ? AppTheme.ac : AppTheme.bd, width: 0.5),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6)],
+          ),
+          child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+            color: active ? Colors.white : AppTheme.tx)),
+        )));
+  }
+
+  Widget _mapBottomSheet(Map<String, dynamic> place) {
+    final lat = place['lat'] as double? ?? 0;
+    final lng = place['lng'] as double? ?? 0;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.cd,
+        borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+        border: Border.all(color: AppTheme.bd, width: 0.5),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, offset: const Offset(0, -4))],
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Handle bar
+        Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 14),
+          decoration: BoxDecoration(color: AppTheme.bd, borderRadius: BorderRadius.circular(2)))),
+        // Name + close
+        Row(children: [
+          Container(width: 44, height: 44, decoration: BoxDecoration(
+            color: AppTheme.ac.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+            child: Center(child: Text(place['e'] ?? '📍', style: const TextStyle(fontSize: 22)))),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(place['nom'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.tx)),
+            Text(place['dir'] ?? '', style: const TextStyle(fontSize: 11, color: AppTheme.tm)),
+          ])),
+          GestureDetector(
+            onTap: () => setState(() => _selectedMapPlace = null),
+            child: Container(width: 32, height: 32, decoration: BoxDecoration(
+              color: AppTheme.bg, shape: BoxShape.circle, border: Border.all(color: AppTheme.bd)),
+              child: const Icon(Icons.close, size: 16, color: AppTheme.tm))),
+        ]),
+        if (place['h'] != null) ...[
+          const SizedBox(height: 8),
+          Row(children: [
+            const Icon(Icons.access_time, size: 12, color: AppTheme.tm),
+            const SizedBox(width: 4),
+            Text(place['h'], style: const TextStyle(fontSize: 10, color: AppTheme.tm)),
+            if (place['r'] != null) ...[
+              const SizedBox(width: 12),
+              Text('⭐ ${place['r']}', style: const TextStyle(fontSize: 10, color: AppTheme.or)),
+            ],
+          ]),
+        ],
+        const SizedBox(height: 14),
+        // Car / Bike toggle
+        Row(children: [
+          Expanded(child: GestureDetector(
+            onTap: () => setState(() => _navModeCar = true),
+            child: Container(padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: _navModeCar ? AppTheme.ac : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _navModeCar ? AppTheme.ac : AppTheme.bd)),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.directions_car, size: 16, color: _navModeCar ? Colors.white : AppTheme.tm),
+                const SizedBox(width: 6),
+                Text('Auto', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                  color: _navModeCar ? Colors.white : AppTheme.tm)),
+              ])))),
+          const SizedBox(width: 8),
+          Expanded(child: GestureDetector(
+            onTap: () => setState(() => _navModeCar = false),
+            child: Container(padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: !_navModeCar ? AppTheme.ac : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: !_navModeCar ? AppTheme.ac : AppTheme.bd)),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.two_wheeler, size: 16, color: !_navModeCar ? Colors.white : AppTheme.tm),
+                const SizedBox(width: 6),
+                Text('Moto', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                  color: !_navModeCar ? Colors.white : AppTheme.tm)),
+              ])))),
+        ]),
+        const SizedBox(height: 10),
+        // Avoid options
+        Row(children: [
+          GestureDetector(
+            onTap: () => setState(() => _avoidTolls = !_avoidTolls),
+            child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: _avoidTolls ? AppTheme.ac.withOpacity(0.1) : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _avoidTolls ? AppTheme.ac : AppTheme.bd)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (_avoidTolls) const Icon(Icons.check, size: 12, color: AppTheme.ac),
+                if (_avoidTolls) const SizedBox(width: 4),
+                Text('Evitar casetas', style: TextStyle(fontSize: 10, color: _avoidTolls ? AppTheme.ac : AppTheme.tm)),
+              ]))),
+          const SizedBox(width: 8),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.transparent, borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.bd)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.check, size: 12, color: AppTheme.gr),
+              const SizedBox(width: 4),
+              const Text('Ruta más rápida', style: TextStyle(fontSize: 10, color: AppTheme.gr)),
+            ])),
+        ]),
+        const SizedBox(height: 12),
+        // Distance + Time
+        Row(children: [
+          Text(place['tiempo'] ?? '-- min', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppTheme.ac)),
+          const SizedBox(width: 8),
+          Text('(${place['dist'] ?? '-- km'})', style: const TextStyle(fontSize: 14, color: AppTheme.tm)),
+        ]),
+        const Text('Mejor ruta disponible', style: TextStyle(fontSize: 10, color: AppTheme.tm)),
+        const SizedBox(height: 14),
+        // Action buttons: Start, Call, Share, Bookmark
+        Row(children: [
+          // START button - blue
+          Expanded(child: GestureDetector(
+            onTap: () => _openNavigation(lat, lng, place['nom'] ?? ''),
+            child: Container(padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFF2D7AFF), Color(0xFF00B4FF)]),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [BoxShadow(color: AppTheme.ac.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))]),
+              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.navigation, size: 16, color: Colors.white),
+                SizedBox(width: 6),
+                Text('Iniciar', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+              ])))),
+          const SizedBox(width: 8),
+          // CALL
+          GestureDetector(
+            onTap: () async {
+              final tel = place['tel'] as String?;
+              if (tel != null) {
+                final uri = Uri.parse('tel:$tel');
+                if (await canLaunchUrl(uri)) launchUrl(uri);
+              }
+            },
+            child: Container(width: 44, height: 44, decoration: BoxDecoration(
+              color: AppTheme.bg, borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.bd)),
+              child: const Icon(Icons.phone, size: 18, color: AppTheme.tm))),
+          const SizedBox(width: 8),
+          // SHARE
+          GestureDetector(
+            onTap: () {},
+            child: Container(width: 44, height: 44, decoration: BoxDecoration(
+              color: AppTheme.bg, borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.bd)),
+              child: const Icon(Icons.share, size: 18, color: AppTheme.tm))),
+          const SizedBox(width: 8),
+          // BOOKMARK
+          GestureDetector(
+            onTap: () {},
+            child: Container(width: 44, height: 44, decoration: BoxDecoration(
+              color: AppTheme.bg, borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.bd)),
+              child: const Icon(Icons.bookmark_border, size: 18, color: AppTheme.tm))),
+        ]),
+      ]),
+    );
   }
 
   // ═══ DASHBOARD ═══
@@ -1832,67 +2157,43 @@ class _MainAppState extends State<MainApp> {
       else
         ...fp.map(_pedCard),
       const SizedBox(height: 16),
-      // ═══ GOOGLE MAPS REAL ═══
-      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        const Text('🗺️ Mapa de Entregas', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.tx)),
-        GestureDetector(onTap: _getCurrentLocation,
-          child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: AppTheme.ac.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: const [
-              Icon(Icons.my_location, size: 12, color: AppTheme.ac),
-              SizedBox(width: 4),
-              Text('Mi ubicación', style: TextStyle(fontSize: 9, color: AppTheme.ac)),
-            ]))),
-      ]),
-      const SizedBox(height: 6),
-      ClipRRect(borderRadius: BorderRadius.circular(20),
-        child: Container(height: 250,
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.ac.withOpacity(0.25), width: 1.2)),
-          child: GoogleMap(
-            initialCameraPosition: CameraPosition(target: _mapCenter, zoom: 10),
-            markers: _markers,
-            onMapCreated: (controller) {
-              _mapController = controller;
-              _mapReady = true;
-              controller.setMapStyle(_darkMapStyle);
-              _getCurrentLocation();
-            },
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false,
+      // ═══ MAPA - tap para pantalla completa ═══
+      GestureDetector(
+        onTap: () => setState(() { _showFullMap = true; _updateMapMarkers(); }),
+        child: Container(height: 180,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1565C0)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            boxShadow: [BoxShadow(color: AppTheme.ac.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 4))],
           ),
-        )),
-      const SizedBox(height: 8),
-      // ── Accesos rápidos del mapa ──
-      Row(children: [
-        Expanded(child: GestureDetector(onTap: () => _mapController?.animateCamera(CameraUpdate.newLatLngZoom(const LatLng(20.0833, -98.3833), 14)),
-          child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.ac.withOpacity(0.25), width: 1.2)),
-            child: Column(children: [
-              const Icon(Icons.location_city, size: 20, color: AppTheme.ac),
-              const SizedBox(height: 4),
-              const Text('Tulancingo', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.tx)),
-              Text('${negHidalgo.length} negocios', style: const TextStyle(fontSize: 8, color: AppTheme.tm)),
-            ])))),
-        const SizedBox(width: 8),
-        Expanded(child: GestureDetector(onTap: () => _mapController?.animateCamera(CameraUpdate.newLatLngZoom(const LatLng(19.4326, -99.1332), 12)),
-          child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.pu.withOpacity(0.25), width: 1.2)),
-            child: Column(children: [
-              const Icon(Icons.location_city, size: 20, color: AppTheme.pu),
-              const SizedBox(height: 4),
-              const Text('CDMX', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.tx)),
-              Text('${negCdmx.length} negocios', style: const TextStyle(fontSize: 8, color: AppTheme.tm)),
-            ])))),
-        const SizedBox(width: 8),
-        Expanded(child: GestureDetector(onTap: () => _openNavigation(20.0844, -98.3815, 'Farmacias Madrid'),
-          child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.gr.withOpacity(0.25), width: 1.2)),
-            child: const Column(children: [
-              Icon(Icons.navigation, size: 20, color: AppTheme.gr),
-              SizedBox(height: 4),
-              Text('Navegar', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.tx)),
-              Text('Google Maps', style: TextStyle(fontSize: 8, color: AppTheme.tm)),
-            ])))),
-      ]),
+          child: Stack(children: [
+            // Grid decoration
+            Positioned.fill(child: ClipRRect(borderRadius: BorderRadius.circular(20), child: CustomPaint(painter: _MapGridPainter()))),
+            // Content
+            Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(width: 40, height: 40, decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.map, size: 22, color: Colors.white)),
+                const SizedBox(width: 12),
+                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('🗺️ Mapa de Entregas', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
+                  Text('Toca para ver mapa completo', style: TextStyle(fontSize: 10, color: Colors.white70)),
+                ])),
+                Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.fullscreen, size: 20, color: Colors.white)),
+              ]),
+              const Spacer(),
+              // Mini indicators
+              Row(children: [
+                _mapPreviewChip('📍 Tulancingo', '${negHidalgo.length}'),
+                const SizedBox(width: 8),
+                _mapPreviewChip('🏙️ CDMX', '${negCdmx.length}'),
+                const SizedBox(width: 8),
+                _mapPreviewChip('📦 En ruta', '${useApi ? enRuta : pedidos.where((p) => p.est == "ruta").length}'),
+              ]),
+            ])),
+          ]))),
       const SizedBox(height: 8),
       Row(children: [
         _pedStat('Rutas Activas', useApi ? enRuta : rutas.where((r) => r.est == 'activa').length, AppTheme.ac),
@@ -1928,6 +2229,15 @@ class _MainAppState extends State<MainApp> {
           ]))),
     ]));
   }
+
+  Widget _mapPreviewChip(String label, String count) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+    decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Text(label, style: const TextStyle(fontSize: 9, color: Colors.white70)),
+      const SizedBox(width: 4),
+      Text(count, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white)),
+    ]));
 
   Widget _pedStat(String l, int v, Color c) => Expanded(child: Container(margin: const EdgeInsets.symmetric(horizontal: 3), padding: const EdgeInsets.all(10),
     decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.bd)),
@@ -2172,4 +2482,39 @@ class _MainAppState extends State<MainApp> {
           Text(it, style: TextStyle(fontSize: 11, color: it == 'Cerrar sesión' ? AppTheme.rd : AppTheme.tx)),
         ])),
   ]);
+}
+
+// ═══ Map Grid Painter (decorative lines for map preview card) ═══
+class _MapGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.05)
+      ..strokeWidth = 0.5;
+    // Horizontal lines
+    for (double y = 0; y < size.height; y += 20) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+    // Vertical lines
+    for (double x = 0; x < size.width; x += 20) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    // Diagonal route line
+    final routePaint = Paint()
+      ..color = Colors.white.withOpacity(0.08)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    final path = Path();
+    path.moveTo(size.width * 0.1, size.height * 0.7);
+    path.quadraticBezierTo(size.width * 0.3, size.height * 0.3, size.width * 0.5, size.height * 0.5);
+    path.quadraticBezierTo(size.width * 0.7, size.height * 0.7, size.width * 0.9, size.height * 0.2);
+    canvas.drawPath(path, routePaint);
+    // Dots at endpoints
+    final dotPaint = Paint()..color = Colors.white.withOpacity(0.2);
+    canvas.drawCircle(Offset(size.width * 0.1, size.height * 0.7), 4, dotPaint);
+    canvas.drawCircle(Offset(size.width * 0.9, size.height * 0.2), 4, dotPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
