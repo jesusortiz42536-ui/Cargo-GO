@@ -718,6 +718,25 @@ class _MainAppState extends State<MainApp> {
           ]),
         ),
       ),
+      const SizedBox(height: 10),
+      // Espacio para anuncios
+      Container(
+        width: double.infinity,
+        height: 100,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.campaign_outlined, size: 28, color: Colors.grey.shade300),
+            const SizedBox(height: 4),
+            Text('Anúnciate aquí', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade400)),
+            Text('Espacio publicitario disponible', style: TextStyle(fontSize: 11, color: Colors.grey.shade300)),
+          ]),
+        ),
+      ),
     ]),
   );
 
