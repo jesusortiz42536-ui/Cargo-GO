@@ -311,6 +311,7 @@ final List<Negocio> negCdmx = [
   Negocio(id:"c78",nom:"Dona María Mole",e:"🫕",zona:"Centro",desc:"Moles artesanales",r:4.4,ped:460,c:const Color(0xFF7C2D12),tipo:"comida"),
   Negocio(id:"c79",nom:"Cochinita Express",e:"🐷",zona:"Narvarte",desc:"Cochinita, panuchos, salbutes",r:4.6,ped:1300,c:const Color(0xFFEA580C),tipo:"comida"),
   Negocio(id:"c80",nom:"Mercado Roma",e:"🏪",zona:"Roma",desc:"Food court gourmet",r:4.5,ped:1600,c:AppTheme.pu,tipo:"mercado"),
+  Negocio(id:"c81",nom:"Costco",e:"🛒",zona:"Satélite · Coyoacán · Interlomas",desc:"Mayoreo · Electrónica · Alimentos",r:4.7,ped:5200,c:const Color(0xFF005DAA),tipo:"super"),
 ];
 
 final List<Pedido> pedidos = [
@@ -1208,7 +1209,7 @@ class _MainAppState extends State<MainApp> {
       const SizedBox(height: 10),
       // Type filter - outlined rounded
       Wrap(spacing: 4, runSpacing: 4, children: [
-        for (var t in [['all','🏪 Todos'],['comida','🍲'],['cafe','☕'],['postres','🧁'],['mariscos','🦐'],['bebidas','🍺'],['farmacia','💊'],['servicios','🔧']])
+        for (var t in [['all','🏪 Todos'],['comida','🍲'],['cafe','☕'],['postres','🧁'],['mariscos','🦐'],['bebidas','🍺'],['farmacia','💊'],['super','🛒'],['servicios','🔧']])
           GestureDetector(onTap: () => setState(() => _negTipo = t[0]),
             child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), decoration: BoxDecoration(borderRadius: BorderRadius.circular(20),
               border: Border.all(color: _negTipo == t[0] ? AppTheme.ac : AppTheme.bd, width: 1.2),
@@ -1216,28 +1217,75 @@ class _MainAppState extends State<MainApp> {
               child: Text(t[1], style: TextStyle(fontSize: 10, color: _negTipo == t[0] ? AppTheme.ac : AppTheme.tm)))),
       ]),
       const SizedBox(height: 8),
-      Text('${filtered.length} resultados', style: TextStyle(fontSize: 10, color: AppTheme.td)),
+      Text('${filtered.length} resultados', style: const TextStyle(fontSize: 10, color: AppTheme.td)),
       const SizedBox(height: 10),
-      // Grid - outlined transparent cards
-      GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.05),
-        itemCount: filtered.length, itemBuilder: (_, i) {
-          final n = filtered[i];
+      // Costco special card si está en lista
+      if (filtered.any((n) => n.id == 'c81')) ...[
+        GestureDetector(onTap: () {},
+          child: Container(margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFF005DAA), Color(0xFF0073CF)]),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [BoxShadow(color: const Color(0xFF005DAA).withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))],
+            ),
+            child: Row(children: [
+              Container(width: 56, height: 56, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                child: const Center(child: Text('🛒', style: TextStyle(fontSize: 30)))),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
+                Text('Costco', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+                SizedBox(height: 2),
+                Text('Mayoreo · Electrónica · Alimentos', style: TextStyle(fontSize: 11, color: Colors.white70)),
+                SizedBox(height: 4),
+                Text('📍 Satélite · Coyoacán · Interlomas', style: TextStyle(fontSize: 10, color: Colors.white54)),
+                Text('⭐ 4.7 · 5,200+ pedidos', style: TextStyle(fontSize: 10, color: Colors.white54)),
+              ])),
+              const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
+            ]),
+          ),
+        ),
+      ],
+      // Grid - cards con foto y ubicación
+      GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.78),
+        itemCount: filtered.where((n) => n.id != 'c81').length, itemBuilder: (_, i) {
+          final n = filtered.where((n) => n.id != 'c81').toList()[i];
           return GestureDetector(onTap: () { if (n.menu != null) setState(() => _menuScreen = n.menu); },
-            child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(
+            child: Container(decoration: BoxDecoration(
               color: Colors.transparent, borderRadius: BorderRadius.circular(20),
               border: Border.all(color: n.c.withOpacity(0.25), width: 1.2)),
-              child: Stack(children: [
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(n.e, style: const TextStyle(fontSize: 26)),
-                  const SizedBox(height: 6),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // Foto placeholder con color
+                Container(height: 70, decoration: BoxDecoration(
+                  color: n.c.withOpacity(0.15),
+                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(19), topRight: Radius.circular(19))),
+                  child: Stack(children: [
+                    Center(child: Text(n.e, style: const TextStyle(fontSize: 34))),
+                    Positioned(top: 6, right: 6, child: GestureDetector(onTap: () => setState(() => _favs.contains(n.id) ? _favs.remove(n.id) : _favs.add(n.id)),
+                      child: Container(width: 26, height: 26, decoration: BoxDecoration(color: AppTheme.bg.withOpacity(0.6), shape: BoxShape.circle),
+                        child: Center(child: Text(_favs.contains(n.id) ? '❤️' : '🤍', style: const TextStyle(fontSize: 12)))))),
+                  ])),
+                // Info
+                Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(n.nom, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  Text(n.desc, style: TextStyle(fontSize: 9, color: AppTheme.tm), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  const Spacer(),
-                  Text('⭐${n.r} · 📦${n.ped} · ${n.zona}', style: TextStyle(fontSize: 7, color: AppTheme.td), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  if (n.menu != null) Text('📋 Ver menú →', style: TextStyle(fontSize: 8, color: n.c, fontWeight: FontWeight.w600)),
-                ]),
-                Positioned(top: 0, right: 0, child: GestureDetector(onTap: () => setState(() => _favs.contains(n.id) ? _favs.remove(n.id) : _favs.add(n.id)),
-                  child: Text(_favs.contains(n.id) ? '❤️' : '🤍', style: const TextStyle(fontSize: 14)))),
+                  const SizedBox(height: 2),
+                  Text(n.desc, style: const TextStyle(fontSize: 9, color: AppTheme.tm), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    const Icon(Icons.location_on, size: 10, color: AppTheme.td),
+                    const SizedBox(width: 2),
+                    Expanded(child: Text(n.zona, style: const TextStyle(fontSize: 8, color: AppTheme.td), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  ]),
+                  const SizedBox(height: 3),
+                  Row(children: [
+                    Text('⭐${n.r}', style: const TextStyle(fontSize: 8, color: AppTheme.or)),
+                    const SizedBox(width: 6),
+                    Text('📦${n.ped}', style: const TextStyle(fontSize: 8, color: AppTheme.tm)),
+                  ]),
+                  if (n.menu != null) ...[
+                    const SizedBox(height: 3),
+                    Text('Ver menú →', style: TextStyle(fontSize: 8, color: n.c, fontWeight: FontWeight.w600)),
+                  ],
+                ])),
               ])));
         }),
     ]));
@@ -1245,8 +1293,8 @@ class _MainAppState extends State<MainApp> {
 
   Widget _cityBtn(String k, String l) => Expanded(child: GestureDetector(onTap: () => setState(() => _negCity = k),
     child: Container(margin: const EdgeInsets.symmetric(horizontal: 2), padding: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(10), border: Border.all(color: _negCity == k ? AppTheme.ac : AppTheme.bd, width: _negCity == k ? 2 : 1),
-      color: _negCity == k ? AppTheme.ac.withOpacity(0.06) : AppTheme.cd),
+      borderRadius: BorderRadius.circular(20), border: Border.all(color: _negCity == k ? AppTheme.ac : AppTheme.bd, width: 1.2),
+      color: _negCity == k ? AppTheme.ac.withOpacity(0.08) : Colors.transparent),
       child: Text(l, textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _negCity == k ? AppTheme.ac : AppTheme.tm)))));
 
   // ═══ MENU VIEW ═══
