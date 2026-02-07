@@ -1365,26 +1365,33 @@ class _MainAppState extends State<MainApp> {
     final ec = {'ruta': AppTheme.ac, 'prep': AppTheme.or, 'ok': AppTheme.gr};
     final el = {'ruta': 'En Ruta', 'prep': 'Preparando', 'ok': 'Entregado'};
     final ei = {'ruta': Icons.local_shipping, 'prep': Icons.access_time, 'ok': Icons.check_circle};
-    return Container(margin: const EdgeInsets.only(bottom: 6), padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.bd)),
+    final c = ec[p.est]!;
+    return Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: c.withOpacity(0.25), width: 1.2),
+      ),
       child: Row(children: [
-        Container(width: 32, height: 32, decoration: BoxDecoration(color: ec[p.est]!.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-          child: Icon(ei[p.est], size: 16, color: ec[p.est])),
-        const SizedBox(width: 8),
+        Container(width: 40, height: 40, decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+          child: Icon(ei[p.est], size: 20, color: c)),
+        const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(p.id, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.tx)),
-            Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1), decoration: BoxDecoration(color: ec[p.est]!.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-              child: Text(el[p.est]!, style: TextStyle(fontSize: 8, fontWeight: FontWeight.w600, color: ec[p.est]))),
+            Text(p.id, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+              child: Text(el[p.est]!, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: c))),
           ]),
-          Text('${p.orig} → ${p.dest}', style: const TextStyle(fontSize: 9, color: AppTheme.tm)),
+          const SizedBox(height: 4),
+          Text('${p.orig} → ${p.dest}', style: const TextStyle(fontSize: 10, color: AppTheme.tm)),
           if (p.prog > 0 && p.prog < 100) ...[
-            const SizedBox(height: 3),
-            ClipRRect(borderRadius: BorderRadius.circular(1), child: LinearProgressIndicator(value: p.prog / 100, backgroundColor: ec[p.est]!.withOpacity(0.1), color: ec[p.est], minHeight: 2)),
+            const SizedBox(height: 5),
+            ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: p.prog / 100, backgroundColor: c.withOpacity(0.08), color: c, minHeight: 3)),
           ],
+          const SizedBox(height: 4),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text('${p.cl} · ${p.h}', style: const TextStyle(fontSize: 9, color: AppTheme.td)),
-            Text('\$${p.m}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.gr, fontFamily: 'monospace')),
+            Text('\$${p.m}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
           ]),
         ])),
       ]));
