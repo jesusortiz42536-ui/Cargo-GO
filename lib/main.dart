@@ -996,6 +996,8 @@ class _MainAppState extends State<MainApp> {
       // ── Stats entregas ──
       const Text('Resumen de Entregas', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.tx)),
       const SizedBox(height: 8),
+      _statCardTap('Farmacias Madrid', sProductos, Icons.medication, const Color(0xFF0D47A1), 'farmacia'),
+      const SizedBox(height: 8),
       Row(children: [
         _statCard('Entregas Hoy', sEntregas, Icons.local_shipping, AppTheme.ac),
         const SizedBox(width: 8),
@@ -1022,7 +1024,36 @@ class _MainAppState extends State<MainApp> {
         const Text('Entregas Recientes', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.tx)),
         TextButton(onPressed: () => setState(() => _tab = 2), child: const Text('Ver todos', style: TextStyle(fontSize: 11, color: AppTheme.ac))),
       ]),
-      ...pedidos.where((p) => p.est != 'ok').take(4).map(_pedCard),
+      // Primer pedido destacado - Farmacias Madrid
+      GestureDetector(
+        onTap: () => setState(() => _menuScreen = 'farmacia'),
+        child: Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1565C0)]),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(children: [
+            Container(width: 40, height: 40, decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.medication, size: 20, color: Colors.white)),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                const Text('Farmacias Madrid', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                  child: const Text('Abierto', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white))),
+              ]),
+              const SizedBox(height: 4),
+              const Text('Medicamentos · Productos de salud', style: TextStyle(fontSize: 10, color: Colors.white70)),
+              const SizedBox(height: 4),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: const [
+                Text('Lun-Sáb 8:00-21:00', style: TextStyle(fontSize: 9, color: Colors.white54)),
+                Text('⭐ 5.0', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
+              ]),
+            ])),
+          ]),
+        ),
+      ),
+      ...pedidos.where((p) => p.est != 'ok').take(3).map(_pedCard),
     ]));
   }
 
@@ -1055,33 +1086,62 @@ class _MainAppState extends State<MainApp> {
     ));
   }
 
-  Widget _negCard(String emoji, String title, String sub, String rating, Color c, String key) => GestureDetector(
-    onTap: () => setState(() => _menuScreen = key),
+  Widget _negCard(String emoji, String title, String sub, String rating, Color c, String key) {
+    final bool selected = _menuScreen == key;
+    final Color bc = selected ? const Color(0xFF0D47A1) : c;
+    return GestureDetector(
+      onTap: () => setState(() => _menuScreen = key),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF0D47A1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: selected ? const Color(0xFF0D47A1) : c.withOpacity(0.25), width: 1.2),
+        ),
+        child: Row(children: [
+          Container(width: 48, height: 48,
+            decoration: BoxDecoration(color: selected ? Colors.white.withOpacity(0.2) : c.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 24)))),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: selected ? Colors.white : AppTheme.tx)),
+            const SizedBox(height: 2),
+            Text(sub, style: TextStyle(fontSize: 10, color: selected ? Colors.white70 : AppTheme.tm)),
+          ])),
+          Column(children: [
+            Text(rating, style: TextStyle(fontSize: 10, color: selected ? Colors.white70 : AppTheme.or)),
+            const SizedBox(height: 4),
+            Icon(Icons.arrow_forward_ios, size: 12, color: selected ? Colors.white70 : AppTheme.td),
+          ]),
+      ]),
+    ),
+  ); }
+
+  Widget _statCardTap(String label, String value, IconData ic, Color c, String menuKey) => GestureDetector(
+    onTap: () => setState(() => _menuScreen = menuKey),
     child: Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: c.withOpacity(0.25), width: 1.2)),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [c, c.withOpacity(0.7)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Row(children: [
-        Container(width: 48, height: 48,
-          decoration: BoxDecoration(color: c.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
-          child: Center(child: Text(emoji, style: const TextStyle(fontSize: 24)))),
+        Container(width: 44, height: 44, decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+          child: Icon(ic, size: 22, color: Colors.white)),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.tx)),
-          const SizedBox(height: 2),
-          Text(sub, style: const TextStyle(fontSize: 10, color: AppTheme.tm)),
+          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
+          Text('$value productos', style: const TextStyle(fontSize: 11, color: Colors.white70)),
         ])),
-        Column(children: [
-          Text(rating, style: const TextStyle(fontSize: 10, color: AppTheme.or)),
-          const SizedBox(height: 4),
-          Icon(Icons.arrow_forward_ios, size: 12, color: AppTheme.td),
-        ]),
+        const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
       ]),
     ),
   );
 
   Widget _statCard(String label, String value, IconData ic, Color c) => Expanded(child: Container(
     padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppTheme.bd)),
+    decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.bd, width: 1.2)),
     child: Row(children: [
       Container(width: 40, height: 40, decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
         child: Icon(ic, size: 20, color: c)),
