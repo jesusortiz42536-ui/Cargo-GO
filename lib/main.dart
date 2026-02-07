@@ -680,8 +680,16 @@ class _MainAppState extends State<MainApp> {
   Widget _logoBar() => Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: Row(children: [
-      Image.asset('assets/images/logo.png', height: 45),
-      const Spacer(),
+      // Campana izquierda
+      GestureDetector(onTap: _showNotifs, child: Stack(children: [
+        const Icon(Icons.notifications_outlined, size: 24, color: AppTheme.tm),
+        if (_unreadNotifs > 0) Positioned(right: 0, top: 0, child: Container(width: 14, height: 14,
+          decoration: const BoxDecoration(color: AppTheme.rd, shape: BoxShape.circle),
+          child: Center(child: Text('$_unreadNotifs', style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white))))),
+      ])),
+      // Logo centrado
+      Expanded(child: Center(child: Image.asset('assets/images/logo.png', height: 65))),
+      // Derecha: carrito o conexión
       if (_cartQty > 0) GestureDetector(onTap: _openCart,
         child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
@@ -689,17 +697,9 @@ class _MainAppState extends State<MainApp> {
             const Icon(Icons.shopping_cart, size: 14, color: AppTheme.gr),
             const SizedBox(width: 4),
             Text('$_cartQty', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.gr)),
-          ]))),
-      // 2. Campana de notificaciones
-      GestureDetector(onTap: _showNotifs, child: Stack(children: [
-        const Icon(Icons.notifications_outlined, size: 22, color: AppTheme.tm),
-        if (_unreadNotifs > 0) Positioned(right: 0, top: 0, child: Container(width: 14, height: 14,
-          decoration: const BoxDecoration(color: AppTheme.rd, shape: BoxShape.circle),
-          child: Center(child: Text('$_unreadNotifs', style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white))))),
-      ])),
-      const SizedBox(width: 10),
-      GestureDetector(onTap: _loadApiData,
-        child: Icon(_online ? Icons.cloud_done : Icons.cloud_off, size: 18, color: _online ? AppTheme.gr : AppTheme.rd)),
+          ])))
+      else GestureDetector(onTap: _loadApiData,
+        child: Icon(_online ? Icons.cloud_done : Icons.cloud_off, size: 22, color: _online ? AppTheme.gr : AppTheme.rd)),
     ]),
   );
 
