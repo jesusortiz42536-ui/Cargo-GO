@@ -690,7 +690,7 @@ class _MainAppState extends State<MainApp> {
         ])),
         // Título centrado
         const Expanded(child: Center(child: Text('Cargo-GO', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1.2)))),
-        // Derecha: carrito o conexión
+        // Derecha: carrito si hay items
         if (_cartQty > 0) GestureDetector(onTap: _openCart,
           child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
@@ -698,19 +698,25 @@ class _MainAppState extends State<MainApp> {
               const Icon(Icons.shopping_cart, size: 14, color: AppTheme.gr),
               const SizedBox(width: 4),
               Text('$_cartQty', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.gr)),
-            ])))
-        else GestureDetector(onTap: _loadApiData,
-          child: Icon(_online ? Icons.cloud_done : Icons.cloud_off, size: 22, color: _online ? AppTheme.gr : AppTheme.rd)),
+            ]))),
       ]),
-      const SizedBox(height: 6),
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1877F2),
-          borderRadius: BorderRadius.circular(8),
+      const SizedBox(height: 8),
+      // Buscador blanco
+      GestureDetector(
+        onTap: () => setState(() => _tab = 3),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Row(children: [
+            Icon(Icons.search, size: 20, color: Colors.grey.shade400),
+            const SizedBox(width: 8),
+            Text('Buscar productos, negocios...', style: TextStyle(fontSize: 14, color: Colors.grey.shade400)),
+          ]),
         ),
-        child: const Center(child: Text('Anúnciate', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white))),
       ),
     ]),
   );
