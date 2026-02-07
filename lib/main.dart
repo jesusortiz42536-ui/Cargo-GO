@@ -980,20 +980,20 @@ class _MainAppState extends State<MainApp> {
     return RefreshIndicator(onRefresh: _loadApiData, color: AppTheme.ac,
       child: ListView(padding: const EdgeInsets.all(14), children: [
       _topBar(),
-      // ── Cuadros de negocios (estilo screenshot) ──
+      // ── Servicios (cuadros grandes) ──
       Row(children: [
-        _dashCard('💊', 'Farmacias Madrid', sProductos, Icons.arrow_outward, const Color(0xFF1565C0), 'farmacia'),
+        _dashCard('📦', 'Pedidos\nCDMX - Hidalgo', sEntregas, Icons.arrow_outward, const Color(0xFF0D47A1), null, tabIdx: 2),
         const SizedBox(width: 10),
-        _dashCard('🍲', 'Restaurante\nde mi Mamá', sNegocios, Icons.arrow_outward, AppTheme.cd, 'mama'),
+        _dashCard('🛒', 'Mandados\nLocal', '24', Icons.arrow_outward, AppTheme.cd, null, tabIdx: 1),
       ]),
       const SizedBox(height: 10),
       Row(children: [
-        _dashCard('🎁', 'Regalos Sorpresa\nde mi Hermana', '52', Icons.arrow_outward, AppTheme.cd, 'dulce'),
+        _dashCard('📮', 'Paquetería', '156', Icons.arrow_outward, AppTheme.cd, null, tabIdx: 2),
         const SizedBox(width: 10),
-        _dashCard('📦', 'Mini\nMudanzas', '8', Icons.arrow_outward, AppTheme.cd, null, isMud: true),
+        _dashCard('🚚', 'Mini\nMudanzas', '8', Icons.arrow_outward, AppTheme.cd, null, tabIdx: 3),
       ]),
       const SizedBox(height: 16),
-      // ── Stats entregas (estilo screenshot) ──
+      // ── Stats entregas ──
       const Text('Resumen de Entregas', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.tx)),
       const SizedBox(height: 8),
       Row(children: [
@@ -1008,21 +1008,14 @@ class _MainAppState extends State<MainApp> {
         _statCard('Negocios', sNegocios, Icons.store, AppTheme.or),
       ]),
       const SizedBox(height: 16),
-      // ── Stock Overview ──
-      Container(padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppTheme.bd)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Resumen General', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.tx)),
-          const SizedBox(height: 10),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-            _overviewItem('✅', 'Activos', sEntregas, AppTheme.gr),
-            Container(width: 1, height: 30, color: AppTheme.bd),
-            _overviewItem('⚠️', 'En Ruta', '${pedidos.where((p) => p.est == "ruta").length}', AppTheme.or),
-            Container(width: 1, height: 30, color: AppTheme.bd),
-            _overviewItem('❌', 'Pendientes', '${pedidos.where((p) => p.est == "prep").length}', AppTheme.rd),
-          ]),
-        ]),
-      ),
+      // ── Nuestros Negocios (reemplaza Resumen General) ──
+      const Text('Nuestros Negocios', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+      const SizedBox(height: 8),
+      _negCard('💊', 'Farmacias Madrid', 'Medicamentos · Lun-Sáb 8:00-21:00', '⭐ 5.0', const Color(0xFF0D47A1), 'farmacia'),
+      const SizedBox(height: 8),
+      _negCard('🍲', 'El Restaurante de mi Mamá', 'Comida casera · Antojitos mexicanos', '⭐ 4.9', const Color(0xFFE65100), 'mama'),
+      const SizedBox(height: 8),
+      _negCard('🎁', 'Regalos Sorpresa de mi Hermana', 'Detalles · Regalos personalizados', '⭐ 4.8', const Color(0xFFC2185B), 'dulce'),
       const SizedBox(height: 16),
       // ── Entregas recientes ──
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -1033,10 +1026,10 @@ class _MainAppState extends State<MainApp> {
     ]));
   }
 
-  Widget _dashCard(String emoji, String label, String value, IconData arrow, Color bgColor, String? menuKey, {bool isMud = false}) {
-    final bool isBlue = bgColor == const Color(0xFF1565C0);
+  Widget _dashCard(String emoji, String label, String value, IconData arrow, Color bgColor, String? menuKey, {int? tabIdx}) {
+    final bool isBlue = bgColor == const Color(0xFF0D47A1);
     return Expanded(child: GestureDetector(
-      onTap: () { if (isMud) { setState(() => _tab = 3); } else if (menuKey != null) setState(() => _menuScreen = menuKey); },
+      onTap: () { if (tabIdx != null) { setState(() => _tab = tabIdx); } else if (menuKey != null) setState(() => _menuScreen = menuKey); },
       child: Container(
         height: 140,
         padding: const EdgeInsets.all(14),
@@ -1044,7 +1037,7 @@ class _MainAppState extends State<MainApp> {
           color: bgColor,
           borderRadius: BorderRadius.circular(16),
           border: isBlue ? null : Border.all(color: AppTheme.bd),
-          gradient: isBlue ? const LinearGradient(colors: [Color(0xFF1565C0), Color(0xFF1E88E5)], begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
+          gradient: isBlue ? const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1565C0)], begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -1061,6 +1054,30 @@ class _MainAppState extends State<MainApp> {
       ),
     ));
   }
+
+  Widget _negCard(String emoji, String title, String sub, String rating, Color c, String key) => GestureDetector(
+    onTap: () => setState(() => _menuScreen = key),
+    child: Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppTheme.bd)),
+      child: Row(children: [
+        Container(width: 48, height: 48,
+          decoration: BoxDecoration(color: c.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+          child: Center(child: Text(emoji, style: const TextStyle(fontSize: 24)))),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+          const SizedBox(height: 2),
+          Text(sub, style: const TextStyle(fontSize: 10, color: AppTheme.tm)),
+        ])),
+        Column(children: [
+          Text(rating, style: const TextStyle(fontSize: 10, color: AppTheme.or)),
+          const SizedBox(height: 4),
+          Icon(Icons.arrow_forward_ios, size: 12, color: AppTheme.td),
+        ]),
+      ]),
+    ),
+  );
 
   Widget _statCard(String label, String value, IconData ic, Color c) => Expanded(child: Container(
     padding: const EdgeInsets.all(14),
