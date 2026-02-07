@@ -4,15 +4,23 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static String _baseUrl = 'http://192.168.0.103:5000';
+  // ═══ BASE URLs ═══
+  // Puerto 5001 = Cargo-GO API (negocios, farmacia, envios, marketplace)
+  // Puerto 5000 = Repartidores API (entregas, drivers, tracking)
+  static String _baseUrl = 'http://192.168.0.103:5001';
+  static String _repartidoresUrl = 'http://192.168.0.103:5000';
 
   static String get baseUrl => _baseUrl;
   static set baseUrl(String url) => _baseUrl = url.replaceAll(RegExp(r'/$'), '');
 
-  // ═══ HTTP HELPER ═══
-  static Future<Map<String, dynamic>?> _get(String endpoint) async {
+  static String get repartidoresUrl => _repartidoresUrl;
+  static set repartidoresUrl(String url) => _repartidoresUrl = url.replaceAll(RegExp(r'/$'), '');
+
+  // ═══ HTTP HELPERS ═══
+  static Future<Map<String, dynamic>?> _get(String endpoint, {bool useRepartidores = false}) async {
     try {
-      final uri = Uri.parse('$_baseUrl$endpoint');
+      final base = useRepartidores ? _repartidoresUrl : _baseUrl;
+      final uri = Uri.parse('$base$endpoint');
       final response = await http.get(uri).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
@@ -26,9 +34,10 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>?> _post(String endpoint, Map<String, dynamic> body) async {
+  static Future<Map<String, dynamic>?> _post(String endpoint, Map<String, dynamic> body, {bool useRepartidores = false}) async {
     try {
-      final uri = Uri.parse('$_baseUrl$endpoint');
+      final base = useRepartidores ? _repartidoresUrl : _baseUrl;
+      final uri = Uri.parse('$base$endpoint');
       final response = await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
@@ -43,9 +52,10 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>?> _put(String endpoint, Map<String, dynamic> body) async {
+  static Future<Map<String, dynamic>?> _put(String endpoint, Map<String, dynamic> body, {bool useRepartidores = false}) async {
     try {
-      final uri = Uri.parse('$_baseUrl$endpoint');
+      final base = useRepartidores ? _repartidoresUrl : _baseUrl;
+      final uri = Uri.parse('$base$endpoint');
       final response = await http.put(
         uri,
         headers: {'Content-Type': 'application/json'},
@@ -62,7 +72,7 @@ class ApiService {
   static Future<Map<String, dynamic>?> login(String usuario, String password) =>
       _post('/api/login', {'usuario': usuario, 'password': password});
 
-  // ═══ STATS ═══
+  // ═══ STATS (Cargo-GO) ═══
   static Future<Map<String, dynamic>?> getStats() => _get('/api/stats');
 
   // ═══ NEGOCIOS (MARKETPLACE) ═══
@@ -84,7 +94,10 @@ class ApiService {
     return [];
   }
 
-  // ═══ ENVIOS ═══
+  static Future<Map<String, dynamic>?> registrarNegocio(Map<String, dynamic> data) =>
+      _post('/api/negocios/registro', data);
+
+  // ═══ ENVÍOS ═══
   static Future<Map<String, dynamic>?> cotizar(String cp, double peso) =>
       _post('/api/cotizar', {'cp': cp, 'peso': peso});
 
@@ -95,6 +108,59 @@ class ApiService {
 
   static Future<List<Map<String, dynamic>>> getHistorial() async {
     final res = await _get('/api/historial');
+    if (res != null && res.containsKey('data')) {
+      return List<Map<String, dynamic>>.from(res['data']);
+    }
+    return [];
+  }
+
+  // ═══ ZONAS ═══
+  static Future<List<Map<String, dynamic>>> getZonas() async {
+    final res = await _get('/api/zonas');
+    if (res != null && res.containsKey('data')) {
+      return List<Map<String, dynamic>>.from(res['data']);
+    }
+    return [];
+  }
+
+  static Future<Map<String, dynamic>?> detectarZona(String cp) =>
+      _get('/api/detectar-zona/$cp');
+
+  // ═══ REPARTIDORES API (Port 5000) ═══
+  static Future<List<Map<String, dynamic>>> getEntregas({String? estado, String? repartidorId}) async {
+    String query = '/api/entregas';
+    final params = <String>[];
+    if (estado != null && estado.isNotEmpty) params.add('estado=$estado');
+    if (repartidorId != null) params.add('repartidor_id=$repartidorId');
+    if (params.isNotEmpty) query += '?${params.join('&')}';
+    final res = await _get(query, useRepartidores: true);
+    if (res != null && res.containsKey('data')) {
+      return List<Map<String, dynamic>>.from(res['data']);
+    }
+    if (res != null && !res.containsKey('error')) {
+      // Some APIs return list directly
+      if (res.containsKey('entregas')) return List<Map<String, dynamic>>.from(res['entregas']);
+    }
+    return [];
+  }
+
+  static Future<Map<String, dynamic>?> getEntrega(int id) =>
+      _get('/api/entregas/$id', useRepartidores: true);
+
+  static Future<Map<String, dynamic>?> iniciarEntrega(int id) =>
+      _post('/api/entregas/$id/iniciar', {}, useRepartidores: true);
+
+  static Future<Map<String, dynamic>?> completarEntrega(int id) =>
+      _post('/api/entregas/$id/completar', {}, useRepartidores: true);
+
+  static Future<Map<String, dynamic>?> getRepartidor(int id) =>
+      _get('/api/repartidor/$id', useRepartidores: true);
+
+  static Future<Map<String, dynamic>?> getRepartidorStats(int repartidorId) =>
+      _get('/api/stats/$repartidorId', useRepartidores: true);
+
+  static Future<List<Map<String, dynamic>>> getRepartidores() async {
+    final res = await _get('/api/repartidores');
     if (res != null && res.containsKey('data')) {
       return List<Map<String, dynamic>>.from(res['data']);
     }
@@ -182,16 +248,7 @@ class ApiService {
   static Future<Map<String, dynamic>?> getPedidosStats() =>
       _get('/api/farmacia/pedidos/stats');
 
-  // ═══ ZONAS ═══
-  static Future<List<Map<String, dynamic>>> getZonas() async {
-    final res = await _get('/api/zonas');
-    if (res != null && res.containsKey('data')) {
-      return List<Map<String, dynamic>>.from(res['data']);
-    }
-    return [];
-  }
-
-  // ═══ HEALTH CHECK ═══
+  // ═══ HEALTH CHECKS ═══
   static Future<bool> isOnline() async {
     try {
       final res = await _get('/api/stats');
@@ -199,5 +256,26 @@ class ApiService {
     } catch (_) {
       return false;
     }
+  }
+
+  static Future<bool> isRepartidoresOnline() async {
+    try {
+      final res = await _get('/api/entregas', useRepartidores: true);
+      return res != null && !res.containsKey('error');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ═══ FULL HEALTH CHECK (both APIs) ═══
+  static Future<Map<String, bool>> checkAllServices() async {
+    final results = await Future.wait([
+      isOnline(),
+      isRepartidoresOnline(),
+    ]);
+    return {
+      'cargo_go': results[0],
+      'repartidores': results[1],
+    };
   }
 }

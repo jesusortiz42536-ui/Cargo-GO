@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'services/api_service.dart';
 
 class AppTheme {
@@ -22,7 +25,24 @@ class AppTheme {
   static const td = Color(0xFF506080);
 }
 
-
+// Google Maps dark style JSON
+const String _darkMapStyle = '''[
+  {"elementType":"geometry","stylers":[{"color":"#0d1117"}]},
+  {"elementType":"labels.text.fill","stylers":[{"color":"#8899b4"}]},
+  {"elementType":"labels.text.stroke","stylers":[{"color":"#0d1117"}]},
+  {"featureType":"administrative","elementType":"geometry.stroke","stylers":[{"color":"#1c2d4a"}]},
+  {"featureType":"administrative.land_parcel","elementType":"labels.text.fill","stylers":[{"color":"#506080"}]},
+  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#111d33"}]},
+  {"featureType":"poi","elementType":"labels.text.fill","stylers":[{"color":"#8899b4"}]},
+  {"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#0c1a10"}]},
+  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#1c2d4a"}]},
+  {"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#111d33"}]},
+  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#2d7aff"}]},
+  {"featureType":"road.highway","elementType":"geometry.stroke","stylers":[{"color":"#0d47a1"}]},
+  {"featureType":"transit","elementType":"geometry","stylers":[{"color":"#111d33"}]},
+  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#060b18"}]},
+  {"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#506080"}]}
+]''';
 
 class MenuItem {
   final String n, d;
@@ -586,6 +606,7 @@ class _MainAppState extends State<MainApp> {
 
   // ═══ API STATE ═══
   bool _online = false;
+  bool _onlineRep = false; // Repartidores API
   bool _loadingApi = false;
   Map<String, dynamic> _apiStats = {};
   List<Map<String, dynamic>> _apiNegocios = [];
@@ -593,6 +614,16 @@ class _MainAppState extends State<MainApp> {
   List<Map<String, dynamic>> _apiOfertas = [];
   List<Map<String, dynamic>> _apiPedidos = [];
   List<Map<String, dynamic>> _apiHistorial = [];
+  List<Map<String, dynamic>> _apiEntregas = []; // Repartidores API
+  Map<String, dynamic> _apiPedidosStats = {};
+
+  // ═══ GOOGLE MAPS ═══
+  GoogleMapController? _mapController;
+  LatLng _mapCenter = const LatLng(20.0833, -98.3833); // Tulancingo default
+  final Set<Marker> _markers = {};
+  Position? _currentPos;
+  bool _mapReady = false;
+  String _trackFolio = '';
 
   // ═══ NOTIFICACIONES ═══
   final List<Notif> _notifs = [
@@ -622,6 +653,8 @@ class _MainAppState extends State<MainApp> {
           _apiFarmProductos = List<Map<String, dynamic>>.from(data['productos'] ?? []);
           _apiOfertas = List<Map<String, dynamic>>.from(data['ofertas'] ?? []);
           _apiHistorial = List<Map<String, dynamic>>.from(data['historial'] ?? []);
+          _apiEntregas = List<Map<String, dynamic>>.from(data['entregas'] ?? []);
+          _apiPedidosStats = (data['pedidos_stats'] as Map<String, dynamic>?) ?? {};
         });
         debugPrint('[CGO] Cache loaded');
       }
@@ -634,7 +667,8 @@ class _MainAppState extends State<MainApp> {
       await prefs.setString('api_cache', json.encode({
         'stats': _apiStats, 'negocios': _apiNegocios,
         'productos': _apiFarmProductos, 'ofertas': _apiOfertas,
-        'historial': _apiHistorial,
+        'historial': _apiHistorial, 'entregas': _apiEntregas,
+        'pedidos_stats': _apiPedidosStats,
       }));
       debugPrint('[CGO] Cache saved');
     } catch (e) { debugPrint('[CGO] Cache save error: $e'); }
@@ -645,27 +679,43 @@ class _MainAppState extends State<MainApp> {
       if (!mounted) return;
       setState(() => _loadingApi = true);
 
-      final online = await ApiService.isOnline();
+      // Check ambas APIs en paralelo
+      final services = await ApiService.checkAllServices();
       if (!mounted) return;
-      setState(() => _online = online);
+      setState(() {
+        _online = services['cargo_go'] ?? false;
+        _onlineRep = services['repartidores'] ?? false;
+      });
 
-      if (online) {
-        final stats = await ApiService.getStats();
-        final negocios = await ApiService.getNegocios();
-        final productos = await ApiService.getFarmaciaProductos(limite: 100);
-        final ofertas = await ApiService.getOfertas();
-        final historial = await ApiService.getHistorial();
+      if (_online || _onlineRep) {
+        // Cargar datos en paralelo de ambas APIs
+        final futures = await Future.wait([
+          _online ? ApiService.getStats() : Future.value(null),
+          _online ? ApiService.getNegocios() : Future.value(<Map<String, dynamic>>[]),
+          _online ? ApiService.getFarmaciaProductos(limite: 100) : Future.value(<Map<String, dynamic>>[]),
+          _online ? ApiService.getOfertas() : Future.value(<Map<String, dynamic>>[]),
+          _online ? ApiService.getHistorial() : Future.value(<Map<String, dynamic>>[]),
+          _onlineRep ? ApiService.getEntregas() : Future.value(<Map<String, dynamic>>[]),
+          _online ? ApiService.getPedidosStats() : Future.value(null),
+          _online ? ApiService.getPedidos() : Future.value(<Map<String, dynamic>>[]),
+        ]);
 
         if (!mounted) return;
         setState(() {
-          _apiStats = stats ?? {};
-          _apiNegocios = negocios;
-          _apiFarmProductos = productos;
-          _apiOfertas = ofertas;
-          _apiHistorial = historial;
+          _apiStats = (futures[0] as Map<String, dynamic>?) ?? _apiStats;
+          _apiNegocios = futures[1] as List<Map<String, dynamic>>;
+          _apiFarmProductos = futures[2] as List<Map<String, dynamic>>;
+          _apiOfertas = futures[3] as List<Map<String, dynamic>>;
+          _apiHistorial = futures[4] as List<Map<String, dynamic>>;
+          _apiEntregas = futures[5] as List<Map<String, dynamic>>;
+          _apiPedidosStats = (futures[6] as Map<String, dynamic>?) ?? _apiPedidosStats;
+          _apiPedidos = futures[7] as List<Map<String, dynamic>>;
           _loadingApi = false;
         });
-        _saveCache(); // 8. Guardar cache
+
+        // Actualizar marcadores del mapa
+        _updateMapMarkers();
+        _saveCache();
       } else {
         if (!mounted) return;
         setState(() => _loadingApi = false);
@@ -673,7 +723,126 @@ class _MainAppState extends State<MainApp> {
     } catch (e) {
       debugPrint('[CGO] Error loading API: $e');
       if (!mounted) return;
-      setState(() { _online = false; _loadingApi = false; });
+      setState(() { _online = false; _onlineRep = false; _loadingApi = false; });
+    }
+  }
+
+  // ═══ GPS LOCATION ═══
+  Future<void> _getCurrentLocation() async {
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+        debugPrint('[GPS] Permiso denegado');
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high).timeout(const Duration(seconds: 15));
+      if (!mounted) return;
+      setState(() {
+        _currentPos = pos;
+        _mapCenter = LatLng(pos.latitude, pos.longitude);
+        _markers.add(Marker(
+          markerId: const MarkerId('mi_ubicacion'),
+          position: LatLng(pos.latitude, pos.longitude),
+          infoWindow: const InfoWindow(title: 'Mi Ubicación'),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        ));
+      });
+      _mapController?.animateCamera(CameraUpdate.newLatLng(_mapCenter));
+    } catch (e) {
+      debugPrint('[GPS] Error: $e');
+    }
+  }
+
+  // ═══ MAP MARKERS ═══
+  void _updateMapMarkers() {
+    _markers.clear();
+    // Tulancingo HQ
+    _markers.add(const Marker(
+      markerId: MarkerId('hq_tulancingo'),
+      position: LatLng(20.0833, -98.3833),
+      infoWindow: InfoWindow(title: 'Cargo-GO HQ', snippet: 'Tulancingo, Hidalgo'),
+    ));
+    // CDMX
+    _markers.add(const Marker(
+      markerId: MarkerId('cdmx'),
+      position: LatLng(19.4326, -99.1332),
+      infoWindow: InfoWindow(title: 'CDMX Hub', snippet: 'Ciudad de México'),
+    ));
+    // Farmacias Madrid
+    _markers.add(Marker(
+      markerId: const MarkerId('farmacias_madrid'),
+      position: const LatLng(20.0844, -98.3815),
+      infoWindow: const InfoWindow(title: 'Farmacias Madrid', snippet: 'Tulancingo, Hidalgo'),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+    ));
+    // Entregas en ruta (de API real)
+    for (int i = 0; i < _apiEntregas.length && i < 20; i++) {
+      final e = _apiEntregas[i];
+      final lat = e['lat'] as double?;
+      final lng = e['lng'] as double?;
+      if (lat != null && lng != null) {
+        _markers.add(Marker(
+          markerId: MarkerId('entrega_$i'),
+          position: LatLng(lat, lng),
+          infoWindow: InfoWindow(title: 'Entrega #${e['id'] ?? i}', snippet: e['estado'] ?? ''),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            e['estado'] == 'en_transito' ? BitmapDescriptor.hueOrange : BitmapDescriptor.hueRed),
+        ));
+      }
+    }
+    // Mi ubicación
+    if (_currentPos != null) {
+      _markers.add(Marker(
+        markerId: const MarkerId('mi_ubicacion'),
+        position: LatLng(_currentPos!.latitude, _currentPos!.longitude),
+        infoWindow: const InfoWindow(title: 'Mi Ubicación'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+      ));
+    }
+  }
+
+  // ═══ TRACKING ═══
+  Future<void> _rastrearPedido(String folio) async {
+    if (folio.isEmpty) return;
+    final result = await ApiService.rastrear(folio);
+    if (result != null && !result.containsKey('error') && mounted) {
+      final estado = result['estado'] ?? 'desconocido';
+      final lat = result['lat'] as double?;
+      final lng = result['lng'] as double?;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('📦 $folio: $estado', style: const TextStyle(color: Colors.white)),
+        backgroundColor: AppTheme.ac,
+      ));
+      if (lat != null && lng != null) {
+        setState(() {
+          _markers.add(Marker(
+            markerId: MarkerId('track_$folio'),
+            position: LatLng(lat, lng),
+            infoWindow: InfoWindow(title: folio, snippet: estado),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+          ));
+        });
+        _mapController?.animateCamera(CameraUpdate.newLatLng(LatLng(lat, lng)));
+      }
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('No se encontró el pedido', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
+  // ═══ OPEN NAVIGATION ═══
+  Future<void> _openNavigation(double lat, double lng, String label) async {
+    final uri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
+    final webUri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else if (await canLaunchUrl(webUri)) {
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -694,7 +863,11 @@ class _MainAppState extends State<MainApp> {
         ])),
         GestureDetector(onTap: _loadApiData,
           child: Container(width: 36, height: 36, decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10)),
-            child: Icon(_online ? Icons.cloud_done : Icons.cloud_off, size: 18, color: _online ? AppTheme.gr : AppTheme.rd))),
+            child: Stack(children: [
+              Center(child: Icon(_online || _onlineRep ? Icons.cloud_done : Icons.cloud_off, size: 18,
+                color: _online && _onlineRep ? AppTheme.gr : _online || _onlineRep ? AppTheme.or : AppTheme.rd)),
+              if (_loadingApi) const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 1.5, color: AppTheme.ac))),
+            ]))),
         const SizedBox(width: 8),
         GestureDetector(onTap: _showNotifs,
           child: Container(width: 36, height: 36, decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10)),
@@ -1001,25 +1174,53 @@ class _MainAppState extends State<MainApp> {
   // ═══ DASHBOARD ═══
   Widget _dashScreen() {
     final allNegs = [...negHidalgo, ...negCdmx];
-    final sEntregas = _online ? '${_apiStats['envios_hoy'] ?? 0}' : '47';
-    final sIngresos = _online ? '\$${((_apiStats['ingresos_hoy'] ?? 0) / 1000).toStringAsFixed(1)}k' : '\$98.2k';
-    final sProductos = _online ? '${_apiFarmProductos.length}+' : '77K+';
-    final sNegocios = _online ? '${_apiNegocios.isNotEmpty ? _apiNegocios.length : allNegs.length}' : '${allNegs.length}';
+    final hasApiStats = _online && _apiStats.isNotEmpty;
+    final sEntregas = hasApiStats ? '${_apiStats['envios_hoy'] ?? _apiEntregas.length}' : '${_apiEntregas.isNotEmpty ? _apiEntregas.length : 47}';
+    final sIngresos = hasApiStats ? '\$${((_apiStats['ingresos_hoy'] ?? 0) / 1000).toStringAsFixed(1)}k' : '\$98.2k';
+    final sProductos = hasApiStats ? '${_apiFarmProductos.isNotEmpty ? _apiFarmProductos.length : 77000}+' : '77K+';
+    final sNegocios = hasApiStats ? '${_apiNegocios.isNotEmpty ? _apiNegocios.length : allNegs.length}' : '${allNegs.length}';
+    final sMandados = hasApiStats ? '${_apiPedidosStats['mandados'] ?? _apiPedidos.length}' : '24';
+    final sPaquetes = hasApiStats ? '${_apiStats['paquetes_hoy'] ?? 156}' : '156';
+    final sMudanzas = hasApiStats ? '${_apiStats['mudanzas_hoy'] ?? 8}' : '8';
+
+    // Entregas recientes: API real si hay, sino mock
+    final bool useApiEntregas = _apiEntregas.isNotEmpty;
 
     return RefreshIndicator(onRefresh: _loadApiData, color: AppTheme.ac,
       child: ListView(padding: const EdgeInsets.all(14), children: [
       _topBar(),
+      // ── API Status indicators ──
+      if (_loadingApi) ...[
+        Container(padding: const EdgeInsets.all(8), margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(color: AppTheme.ac.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: const [
+            SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.ac)),
+            SizedBox(width: 8),
+            Text('Conectando con servidores...', style: TextStyle(fontSize: 10, color: AppTheme.ac)),
+          ])),
+      ],
+      if (_online || _onlineRep) ...[
+        Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.08), borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.gr.withOpacity(0.2))),
+          child: Row(children: [
+            const Icon(Icons.cloud_done, size: 14, color: AppTheme.gr),
+            const SizedBox(width: 6),
+            Text('API Cargo-GO: ${_online ? "✓" : "✗"} · Repartidores: ${_onlineRep ? "✓" : "✗"}', style: const TextStyle(fontSize: 9, color: AppTheme.gr)),
+            const Spacer(),
+            Text('Datos en vivo', style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w600, color: AppTheme.gr)),
+          ])),
+      ],
       // ── Servicios (cuadros grandes) ──
       Row(children: [
         _dashCard('📦', 'Pedidos\nCDMX - Hidalgo', sEntregas, Icons.arrow_outward, const Color(0xFF0D47A1), null, tabIdx: 2),
         const SizedBox(width: 10),
-        _dashCard('🛒', 'Mandados\nLocal', '24', Icons.arrow_outward, AppTheme.cd, null, tabIdx: 1),
+        _dashCard('🛒', 'Mandados\nLocal', sMandados, Icons.arrow_outward, AppTheme.cd, null, tabIdx: 1),
       ]),
       const SizedBox(height: 10),
       Row(children: [
-        _dashCard('📮', 'Paquetería', '156', Icons.arrow_outward, AppTheme.cd, null, tabIdx: 2),
+        _dashCard('📮', 'Paquetería', sPaquetes, Icons.arrow_outward, AppTheme.cd, null, tabIdx: 2),
         const SizedBox(width: 10),
-        _dashCard('🚚', 'Mini\nMudanzas', '8', Icons.arrow_outward, AppTheme.cd, null, tabIdx: 3),
+        _dashCard('🚚', 'Mini\nMudanzas', sMudanzas, Icons.arrow_outward, AppTheme.cd, null, tabIdx: 3),
       ]),
       const SizedBox(height: 16),
       // ── Stats entregas ──
@@ -1037,10 +1238,9 @@ class _MainAppState extends State<MainApp> {
         _statCard('Negocios', sNegocios, Icons.store, AppTheme.or),
       ]),
       const SizedBox(height: 16),
-      // ── Nuestros Negocios (reemplaza Resumen General) ──
+      // ── Nuestros Negocios ──
       const Text('Nuestros Negocios', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.tx)),
       const SizedBox(height: 8),
-      // Farmacias Madrid siempre azul
       GestureDetector(
         onTap: () => setState(() => _menuScreen = 'farmacia'),
         child: Container(padding: const EdgeInsets.all(14),
@@ -1069,18 +1269,112 @@ class _MainAppState extends State<MainApp> {
       _negCard('🍲', 'El Restaurante de mi Mamá', 'Comida casera · Antojitos mexicanos', '⭐ 4.9', const Color(0xFFE65100), 'mama'),
       const SizedBox(height: 8),
       _negCard('🎁', 'Regalos Sorpresa de mi Hermana', 'Detalles · Regalos personalizados', '⭐ 4.8', const Color(0xFFC2185B), 'dulce'),
+      // ── API Negocios del marketplace ──
+      if (_apiNegocios.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        ...(_apiNegocios.take(3).map((n) => Padding(padding: const EdgeInsets.only(bottom: 8),
+          child: _negCard(
+            n['tipo'] == 'farmacia' ? '💊' : n['tipo'] == 'comida' ? '🍲' : '🏪',
+            n['nombre'] ?? 'Negocio',
+            n['descripcion'] ?? '',
+            '⭐ ${n['calificacion'] ?? 4.5}',
+            AppTheme.tl,
+            null,
+          )))),
+      ],
       const SizedBox(height: 16),
-      // ── Entregas recientes ──
+      // ── Entregas recientes (API real o mock) ──
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        const Text('Entregas Recientes', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+        Text('Entregas Recientes${useApiEntregas ? ' (API)' : ''}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.tx)),
         TextButton(onPressed: () => setState(() => _tab = 2), child: const Text('Ver todos', style: TextStyle(fontSize: 11, color: AppTheme.ac))),
       ]),
-      ...pedidos.where((p) => p.est != 'ok').take(4).map((p) {
-        final idx = pedidos.where((p) => p.est != 'ok').toList().indexOf(p);
-        return idx == 0 ? _pedCardBlue(p) : _pedCard(p);
-      }),
+      if (useApiEntregas)
+        ..._apiEntregas.take(5).map((e) {
+          final idx = _apiEntregas.indexOf(e);
+          return _apiEntregaCard(e, isFirst: idx == 0);
+        })
+      else
+        ...pedidos.where((p) => p.est != 'ok').take(4).map((p) {
+          final idx = pedidos.where((p) => p.est != 'ok').toList().indexOf(p);
+          return idx == 0 ? _pedCardBlue(p) : _pedCard(p);
+        }),
     ]));
   }
+
+  // ═══ API ENTREGA CARD (real data) ═══
+  Widget _apiEntregaCard(Map<String, dynamic> e, {bool isFirst = false}) {
+    final estado = (e['estado'] ?? 'pendiente').toString();
+    final ec = {'en_transito': AppTheme.ac, 'pendiente': AppTheme.or, 'completada': AppTheme.gr, 'cancelada': AppTheme.rd};
+    final el = {'en_transito': 'En Ruta', 'pendiente': 'Pendiente', 'completada': 'Entregado', 'cancelada': 'Cancelado'};
+    final ei = {'en_transito': Icons.local_shipping, 'pendiente': Icons.access_time, 'completada': Icons.check_circle, 'cancelada': Icons.cancel};
+    final c = ec[estado] ?? AppTheme.tm;
+    final ic = ei[estado] ?? Icons.help;
+    final lb = el[estado] ?? estado;
+
+    return Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isFirst ? null : Colors.transparent,
+        gradient: isFirst ? const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1565C0)]) : null,
+        borderRadius: BorderRadius.circular(20),
+        border: isFirst ? null : Border.all(color: c.withOpacity(0.25), width: 1.2),
+      ),
+      child: Row(children: [
+        Container(width: 40, height: 40, decoration: BoxDecoration(
+          color: isFirst ? Colors.white.withOpacity(0.2) : c.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+          child: Icon(ic, size: 20, color: isFirst ? Colors.white : c)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('Entrega #${e['id'] ?? ''}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isFirst ? Colors.white : AppTheme.tx)),
+            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: isFirst ? Colors.white.withOpacity(0.2) : c.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+              child: Text(lb, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: isFirst ? Colors.white : c))),
+          ]),
+          const SizedBox(height: 4),
+          Text('${e['direccion_origen'] ?? 'Origen'} → ${e['direccion_destino'] ?? 'Destino'}',
+            style: TextStyle(fontSize: 10, color: isFirst ? Colors.white70 : AppTheme.tm), maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 4),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('${e['cliente_nombre'] ?? ''} · ${e['fecha'] ?? ''}', style: TextStyle(fontSize: 9, color: isFirst ? Colors.white54 : AppTheme.td)),
+            if (e['total'] != null) Text('\$${e['total']}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800,
+              color: isFirst ? Colors.white : AppTheme.gr, fontFamily: 'monospace')),
+          ]),
+          // Botones de acción para entregas en_transito o pendiente
+          if (estado == 'pendiente' || estado == 'en_transito') ...[
+            const SizedBox(height: 6),
+            Row(children: [
+              if (estado == 'pendiente')
+                _entregaAction('Iniciar', Icons.play_arrow, AppTheme.ac, () async {
+                  final id = e['id'] as int?;
+                  if (id != null) { await ApiService.iniciarEntrega(id); _loadApiData(); }
+                }),
+              if (estado == 'en_transito') ...[
+                _entregaAction('Completar', Icons.check, AppTheme.gr, () async {
+                  final id = e['id'] as int?;
+                  if (id != null) { await ApiService.completarEntrega(id); _loadApiData(); }
+                }),
+                const SizedBox(width: 8),
+                _entregaAction('Navegar', Icons.navigation, AppTheme.cy, () {
+                  final lat = e['lat'] as double?;
+                  final lng = e['lng'] as double?;
+                  if (lat != null && lng != null) _openNavigation(lat, lng, 'Entrega #${e['id']}');
+                }),
+              ],
+            ]),
+          ],
+        ])),
+      ]));
+  }
+
+  Widget _entregaAction(String label, IconData icon, Color c, VoidCallback onTap) =>
+    GestureDetector(onTap: onTap, child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: c.withOpacity(0.3))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 12, color: c),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: c)),
+      ])));
 
   Widget _dashCard(String emoji, String label, String value, IconData arrow, Color bgColor, String? menuKey, {int? tabIdx}) {
     final bool isBlue = bgColor == const Color(0xFF0D47A1);
@@ -1188,13 +1482,21 @@ class _MainAppState extends State<MainApp> {
       final mt = _negTipo == 'all' || n.tipo == _negTipo;
       return mq && mt;
     }).toList();
+    // API negocios filtrados
+    final apiFiltered = _apiNegocios.where((n) {
+      final mq = _negSearch.isEmpty || (n['nombre'] ?? '').toString().toLowerCase().contains(_negSearch.toLowerCase());
+      return mq;
+    }).toList();
+    final totalLocal = negHidalgo.length + negCdmx.length;
+    final totalApi = _apiNegocios.length;
+    final totalAll = totalLocal + totalApi;
 
     return RefreshIndicator(onRefresh: _loadApiData, color: AppTheme.ac,
       child: ListView(padding: const EdgeInsets.all(14), children: [
       _topBar(),
       // City filter - outlined rounded
       Row(children: [
-        _cityBtn('all', '🗺️ Todos (${negHidalgo.length + negCdmx.length})'),
+        _cityBtn('all', '🗺️ Todos ($totalAll)'),
         _cityBtn('hidalgo', '🏔️ Hidalgo (${negHidalgo.length})'),
         _cityBtn('cdmx', '🏙️ CDMX (${negCdmx.length})'),
       ]),
@@ -1217,8 +1519,47 @@ class _MainAppState extends State<MainApp> {
               child: Text(t[1], style: TextStyle(fontSize: 10, color: _negTipo == t[0] ? AppTheme.ac : AppTheme.tm)))),
       ]),
       const SizedBox(height: 8),
-      Text('${filtered.length} resultados', style: const TextStyle(fontSize: 10, color: AppTheme.td)),
+      Row(children: [
+        Text('${filtered.length + apiFiltered.length} resultados', style: const TextStyle(fontSize: 10, color: AppTheme.td)),
+        if (_apiNegocios.isNotEmpty) ...[
+          const Text(' · ', style: TextStyle(fontSize: 10, color: AppTheme.td)),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+            child: Text('${apiFiltered.length} del API', style: const TextStyle(fontSize: 8, color: AppTheme.gr))),
+        ],
+      ]),
       const SizedBox(height: 10),
+      // ── API Marketplace negocios ──
+      if (apiFiltered.isNotEmpty) ...[
+        const Text('📡 Marketplace (API)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.ac)),
+        const SizedBox(height: 6),
+        ...apiFiltered.take(5).map((n) => Container(
+          margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.ac.withOpacity(0.25), width: 1.2)),
+          child: Row(children: [
+            Container(width: 44, height: 44, decoration: BoxDecoration(
+              color: AppTheme.ac.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+              child: Center(child: Text(n['tipo'] == 'farmacia' ? '💊' : n['tipo'] == 'comida' ? '🍲' : '🏪', style: const TextStyle(fontSize: 22)))),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(n['nombre'] ?? 'Negocio', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+              Text(n['descripcion'] ?? '', style: const TextStyle(fontSize: 9, color: AppTheme.tm), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Row(children: [
+                const Icon(Icons.location_on, size: 10, color: AppTheme.td),
+                const SizedBox(width: 2),
+                Text(n['direccion'] ?? n['zona'] ?? '', style: const TextStyle(fontSize: 8, color: AppTheme.td), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ]),
+            ])),
+            Column(children: [
+              Text('⭐ ${n['calificacion'] ?? 4.5}', style: const TextStyle(fontSize: 9, color: AppTheme.or)),
+              const Icon(Icons.arrow_forward_ios, size: 10, color: AppTheme.td),
+            ]),
+          ]))),
+        const SizedBox(height: 12),
+        const Text('🏪 Negocios Locales', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+        const SizedBox(height: 6),
+      ],
       // Costco special card si está en lista
       if (filtered.any((n) => n.id == 'c81')) ...[
         GestureDetector(onTap: () {},
@@ -1436,9 +1777,34 @@ class _MainAppState extends State<MainApp> {
   // ═══ PEDIDOS ═══
   Widget _pedScreen() {
     final fp = _pedFilter == 'all' ? pedidos : pedidos.where((p) => p.city == _pedFilter).toList();
+    final bool useApi = _apiEntregas.isNotEmpty;
+    // Stats API reales
+    final enRuta = useApi ? _apiEntregas.where((e) => e['estado'] == 'en_transito').length : fp.where((p) => p.est == 'ruta').length;
+    final pendientes = useApi ? _apiEntregas.where((e) => e['estado'] == 'pendiente').length : fp.where((p) => p.est == 'prep').length;
+    final completadas = useApi ? _apiEntregas.where((e) => e['estado'] == 'completada').length : fp.where((p) => p.est == 'ok').length;
+
     return RefreshIndicator(onRefresh: _loadApiData, color: AppTheme.ac,
       child: ListView(padding: const EdgeInsets.all(14), children: [
       _topBar(),
+      // ── Rastrear pedido ──
+      Container(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF00B4FF), width: 1.2)),
+        child: Row(children: [
+          const Icon(Icons.search, color: Color(0xFFFFD600), size: 18),
+          const SizedBox(width: 8),
+          Expanded(child: TextField(
+            onChanged: (v) => _trackFolio = v,
+            style: const TextStyle(color: Color(0xFF00B4FF), fontSize: 12),
+            decoration: const InputDecoration(
+              hintText: 'Rastrear folio CGO-XXXXX...', hintStyle: TextStyle(color: Color(0xFF00B4FF), fontSize: 11),
+              border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 12)),
+          )),
+          GestureDetector(onTap: () => _rastrearPedido(_trackFolio),
+            child: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: AppTheme.ac.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.send, size: 16, color: AppTheme.ac))),
+        ])),
+      // ── Filter pills ──
       Row(children: [for (var f in [['all','Todos'],['hidalgo','Hidalgo'],['cdmx','CDMX']])
         Expanded(child: GestureDetector(onTap: () => setState(() => _pedFilter = f[0]),
           child: Container(margin: const EdgeInsets.symmetric(horizontal: 3), padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1448,47 +1814,118 @@ class _MainAppState extends State<MainApp> {
               color: _pedFilter == f[0] ? null : Colors.transparent),
             child: Text(f[1], textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _pedFilter == f[0] ? Colors.white : AppTheme.tm)))))]),
       const SizedBox(height: 12),
+      // ── Stats ──
       Row(children: [
-        _pedStatNew('En Ruta', fp.where((p) => p.est == 'ruta').length, AppTheme.ac),
+        _pedStatNew('En Ruta', enRuta, AppTheme.ac),
         const SizedBox(width: 8),
-        _pedStatNew('Preparando', fp.where((p) => p.est == 'prep').length, AppTheme.or),
+        _pedStatNew('Pendientes', pendientes, AppTheme.or),
         const SizedBox(width: 8),
-        _pedStatNew('Entregados', fp.where((p) => p.est == 'ok').length, AppTheme.gr),
+        _pedStatNew('Entregados', completadas, AppTheme.gr),
       ]),
       const SizedBox(height: 10),
-      ...fp.map(_pedCard),
+      // ── Entregas (API real o mock) ──
+      if (useApi)
+        ..._apiEntregas.take(10).map((e) {
+          final idx = _apiEntregas.indexOf(e);
+          return _apiEntregaCard(e, isFirst: idx == 0);
+        })
+      else
+        ...fp.map(_pedCard),
       const SizedBox(height: 16),
-      // Mapa de rutas integrado
-      const Text('🗺️ Mapa de Rutas', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+      // ═══ GOOGLE MAPS REAL ═══
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        const Text('🗺️ Mapa de Entregas', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+        GestureDetector(onTap: _getCurrentLocation,
+          child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(color: AppTheme.ac.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: const [
+              Icon(Icons.my_location, size: 12, color: AppTheme.ac),
+              SizedBox(width: 4),
+              Text('Mi ubicación', style: TextStyle(fontSize: 9, color: AppTheme.ac)),
+            ]))),
+      ]),
       const SizedBox(height: 6),
-      Container(height: 160, decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.ac.withOpacity(0.25), width: 1.2)),
-        child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            _mapCity('TULANCINGO', '${negHidalgo.length}', AppTheme.ac),
-            Column(children: [const Text('→ 180km · 2h30m →', style: TextStyle(fontSize: 9, color: AppTheme.cy)), Container(width: 120, height: 1, color: AppTheme.ac.withOpacity(0.3))]),
-            _mapCity('CDMX', '${negCdmx.length}', AppTheme.pu),
-          ]),
-          const SizedBox(height: 10),
-          Text('${pedidos.where((p) => p.est == "ruta").length} paquetes en ruta', style: TextStyle(fontSize: 10, color: AppTheme.gr)),
-        ]))),
+      ClipRRect(borderRadius: BorderRadius.circular(20),
+        child: Container(height: 250,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.ac.withOpacity(0.25), width: 1.2)),
+          child: GoogleMap(
+            initialCameraPosition: CameraPosition(target: _mapCenter, zoom: 10),
+            markers: _markers,
+            onMapCreated: (controller) {
+              _mapController = controller;
+              _mapReady = true;
+              controller.setMapStyle(_darkMapStyle);
+              _getCurrentLocation();
+            },
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            mapToolbarEnabled: false,
+          ),
+        )),
+      const SizedBox(height: 8),
+      // ── Accesos rápidos del mapa ──
+      Row(children: [
+        Expanded(child: GestureDetector(onTap: () => _mapController?.animateCamera(CameraUpdate.newLatLngZoom(const LatLng(20.0833, -98.3833), 14)),
+          child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.ac.withOpacity(0.25), width: 1.2)),
+            child: Column(children: [
+              const Icon(Icons.location_city, size: 20, color: AppTheme.ac),
+              const SizedBox(height: 4),
+              const Text('Tulancingo', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+              Text('${negHidalgo.length} negocios', style: const TextStyle(fontSize: 8, color: AppTheme.tm)),
+            ])))),
+        const SizedBox(width: 8),
+        Expanded(child: GestureDetector(onTap: () => _mapController?.animateCamera(CameraUpdate.newLatLngZoom(const LatLng(19.4326, -99.1332), 12)),
+          child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.pu.withOpacity(0.25), width: 1.2)),
+            child: Column(children: [
+              const Icon(Icons.location_city, size: 20, color: AppTheme.pu),
+              const SizedBox(height: 4),
+              const Text('CDMX', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+              Text('${negCdmx.length} negocios', style: const TextStyle(fontSize: 8, color: AppTheme.tm)),
+            ])))),
+        const SizedBox(width: 8),
+        Expanded(child: GestureDetector(onTap: () => _openNavigation(20.0844, -98.3815, 'Farmacias Madrid'),
+          child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.gr.withOpacity(0.25), width: 1.2)),
+            child: const Column(children: [
+              Icon(Icons.navigation, size: 20, color: AppTheme.gr),
+              SizedBox(height: 4),
+              Text('Navegar', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+              Text('Google Maps', style: TextStyle(fontSize: 8, color: AppTheme.tm)),
+            ])))),
+      ]),
       const SizedBox(height: 8),
       Row(children: [
-        _pedStat('Rutas Activas', rutas.where((r) => r.est == 'activa').length, AppTheme.ac),
-        _pedStat('Paquetes', rutas.fold(0, (s, r) => s + r.paq), AppTheme.or),
+        _pedStat('Rutas Activas', useApi ? enRuta : rutas.where((r) => r.est == 'activa').length, AppTheme.ac),
+        _pedStat('Paquetes', useApi ? _apiEntregas.length : rutas.fold(0, (s, r) => s + r.paq), AppTheme.or),
       ]),
       const SizedBox(height: 16),
+      // ── Historial (API o mock) ──
       const Text('📋 Historial', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.tx)),
       const SizedBox(height: 8),
-      ...orderHist.map((o) => Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.bd, width: 1.2)),
-        child: Row(children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(o.id, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.tx)), Text(o.dt, style: TextStyle(fontSize: 9, color: AppTheme.tm))]),
-            Text(o.from, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppTheme.ac)),
-            Text(o.items.join(', '), style: TextStyle(fontSize: 8, color: AppTheme.tm)),
-          ])),
-          Text('\$${o.tot}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
-        ]))),
+      if (_apiHistorial.isNotEmpty)
+        ..._apiHistorial.take(10).map((h) => Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.bd, width: 1.2)),
+          child: Row(children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text('${h['folio'] ?? h['id'] ?? ''}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+                Text('${h['fecha'] ?? ''}', style: const TextStyle(fontSize: 9, color: AppTheme.tm))]),
+              Text('${h['origen'] ?? ''} → ${h['destino'] ?? ''}', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppTheme.ac)),
+              Text('${h['estado'] ?? ''}', style: const TextStyle(fontSize: 8, color: AppTheme.tm)),
+            ])),
+            if (h['total'] != null) Text('\$${h['total']}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
+          ])))
+      else
+        ...orderHist.map((o) => Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.bd, width: 1.2)),
+          child: Row(children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(o.id, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.tx)), Text(o.dt, style: const TextStyle(fontSize: 9, color: AppTheme.tm))]),
+              Text(o.from, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppTheme.ac)),
+              Text(o.items.join(', '), style: const TextStyle(fontSize: 8, color: AppTheme.tm)),
+            ])),
+            Text('\$${o.tot}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
+          ]))),
     ]));
   }
 
