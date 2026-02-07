@@ -704,17 +704,22 @@ class _MainAppState extends State<MainApp> {
             ]))),
       ]),
       const SizedBox(height: 12),
-      // Buscador outlined
+      // Buscador neón
       Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 14),
-        decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.bd, width: 1.2)),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF00B4FF), width: 1.2),
+          boxShadow: [BoxShadow(color: const Color(0xFF00B4FF).withOpacity(0.15), blurRadius: 8, spreadRadius: 0)],
+        ),
         child: Row(children: [
-          const Icon(Icons.search, size: 20, color: AppTheme.tm),
+          const Icon(Icons.search, size: 20, color: Color(0xFF00B4FF)),
           const SizedBox(width: 10),
-          const Expanded(child: Text('Buscar...', style: TextStyle(fontSize: 14, color: AppTheme.tm))),
-          Container(width: 32, height: 32, decoration: BoxDecoration(color: AppTheme.sf, borderRadius: BorderRadius.circular(8)),
-            child: const Icon(Icons.tune, size: 16, color: AppTheme.tm)),
+          const Expanded(child: Text('Buscar...', style: TextStyle(fontSize: 14, color: Color(0xFF00B4FF)))),
+          Container(width: 32, height: 32, decoration: BoxDecoration(color: const Color(0xFF00B4FF).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+            child: const Icon(Icons.tune, size: 16, color: Color(0xFF00B4FF))),
         ]),
       ),
     ]),
