@@ -921,7 +921,7 @@ class _MainAppState extends State<MainApp> {
       _navBtn(0, Icons.dashboard_rounded, 'Inicio'),
       _navBtn(1, Icons.store_rounded, 'Negocios'),
       _navBtn(2, Icons.local_shipping_rounded, 'Pedidos'),
-      _navBtn(3, Icons.map_rounded, 'Mapa'),
+      _navBtn(3, Icons.fire_truck_rounded, 'Mudanzas'),
       _navBtn(4, Icons.person_rounded, 'Perfil'),
     ]),
   );
@@ -939,7 +939,7 @@ class _MainAppState extends State<MainApp> {
       case 0: screen = _dashScreen(); break;
       case 1: screen = _negScreen(); break;
       case 2: screen = _pedScreen(); break;
-      case 3: screen = _mapScreen(); break;
+      case 3: screen = _mudScreen(); break;
       case 4: screen = _perfScreen(); break;
       default: screen = _dashScreen();
     }
@@ -1303,6 +1303,25 @@ class _MainAppState extends State<MainApp> {
       const SizedBox(height: 10),
       ...fp.map(_pedCard),
       const SizedBox(height: 16),
+      // Mapa de rutas integrado
+      const Text('🗺️ Mapa de Rutas', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+      const SizedBox(height: 6),
+      Container(height: 160, decoration: BoxDecoration(color: const Color(0xFF080D1A), borderRadius: BorderRadius.circular(14), border: Border.all(color: AppTheme.bd)),
+        child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+            _mapCity('TULANCINGO', '${negHidalgo.length}', AppTheme.ac),
+            Column(children: [const Text('→ 180km · 2h30m →', style: TextStyle(fontSize: 9, color: AppTheme.cy)), Container(width: 120, height: 1, color: AppTheme.ac.withOpacity(0.3))]),
+            _mapCity('CDMX', '${negCdmx.length}', AppTheme.pu),
+          ]),
+          const SizedBox(height: 10),
+          Text('${pedidos.where((p) => p.est == "ruta").length} paquetes en ruta', style: TextStyle(fontSize: 10, color: AppTheme.gr)),
+        ]))),
+      const SizedBox(height: 8),
+      Row(children: [
+        _pedStat('Rutas Activas', rutas.where((r) => r.est == 'activa').length, AppTheme.ac),
+        _pedStat('Paquetes', rutas.fold(0, (s, r) => s + r.paq), AppTheme.or),
+      ]),
+      const SizedBox(height: 16),
       const Text('📋 Historial', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.tx)),
       const SizedBox(height: 8),
       ...orderHist.map((o) => Container(margin: const EdgeInsets.only(bottom: 6), padding: const EdgeInsets.all(10),
@@ -1352,36 +1371,103 @@ class _MainAppState extends State<MainApp> {
   }
 
   // ═══ MAPA ═══
-  Widget _mapScreen() => ListView(padding: const EdgeInsets.all(14), children: [
+  // ═══ MINI MUDANZAS ═══
+  Widget _mudScreen() => ListView(padding: const EdgeInsets.all(14), children: [
     _logoBar(),
-    Container(height: 200, decoration: BoxDecoration(color: const Color(0xFF080D1A), borderRadius: BorderRadius.circular(14), border: Border.all(color: AppTheme.bd)),
-      child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-          _mapCity('TULANCINGO', '${negHidalgo.length}', AppTheme.ac),
-          Column(children: [const Text('→ 180km · 2h30m →', style: TextStyle(fontSize: 9, color: AppTheme.cy)), Container(width: 120, height: 1, color: AppTheme.ac.withOpacity(0.3))]),
-          _mapCity('CDMX', '${negCdmx.length}', AppTheme.pu),
-        ]),
-        const SizedBox(height: 10),
-        Text('${pedidos.where((p) => p.est == "ruta").length} paquetes en ruta', style: TextStyle(fontSize: 10, color: AppTheme.gr)),
-      ]))),
-    const SizedBox(height: 10),
-    Row(children: [
-      _pedStat('Rutas Activas', rutas.where((r) => r.est == 'activa').length, AppTheme.ac),
-      _pedStat('Paquetes', rutas.fold(0, (s, r) => s + r.paq), AppTheme.or),
-    ]),
-    const SizedBox(height: 10),
-    ...rutas.map((r) => Container(margin: const EdgeInsets.only(bottom: 6), padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.bd),
-        boxShadow: [BoxShadow(color: r.c.withOpacity(0.05), blurRadius: 4, offset: const Offset(-3, 0))]),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(r.nom, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
-          Text('${r.dist} · ${r.t} · ${r.paq} paq', style: TextStyle(fontSize: 9, color: AppTheme.tm)),
-        ]),
-        Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: r.c.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-          child: Text(r.est == 'activa' ? '● Activa' : '⏱ Prog', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w600, color: r.c))),
-      ]))),
+    Container(
+      width: double.infinity, padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFF6A1B9A), Color(0xFF8E24AA)]),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: const Color(0xFF6A1B9A).withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(children: [
+        const Icon(Icons.fire_truck, size: 48, color: Colors.white),
+        const SizedBox(height: 8),
+        const Text('Mini Mudanzas', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white)),
+        const SizedBox(height: 4),
+        const Text('Servicio de mudanzas locales en Tulancingo y CDMX', style: TextStyle(fontSize: 12, color: Colors.white70), textAlign: TextAlign.center),
+      ]),
+    ),
+    const SizedBox(height: 14),
+    // Tipos de servicio
+    const Text('Selecciona tu servicio', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+    const SizedBox(height: 8),
+    _mudOption(Icons.chair, 'Mudanza Express', 'Muebles pequeños, cajas, electrodomésticos', '\$350', const Color(0xFF00897B)),
+    const SizedBox(height: 8),
+    _mudOption(Icons.king_bed, 'Mudanza Mediana', 'Recámaras, salas, comedores completos', '\$750', const Color(0xFFEF6C00)),
+    const SizedBox(height: 8),
+    _mudOption(Icons.house, 'Mudanza Completa', 'Casa o departamento completo', '\$1,500', const Color(0xFFC62828)),
+    const SizedBox(height: 8),
+    _mudOption(Icons.business, 'Mudanza Oficina', 'Escritorios, archiveros, equipo', '\$900', const Color(0xFF1565C0)),
+    const SizedBox(height: 16),
+    // Cómo funciona
+    const Text('¿Cómo funciona?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+    const SizedBox(height: 8),
+    _mudStep('1', 'Elige tu servicio', 'Selecciona el tipo de mudanza que necesitas'),
+    _mudStep('2', 'Agenda tu fecha', 'Escoge el día y hora que te convenga'),
+    _mudStep('3', 'Recogemos todo', 'Nuestro equipo llega y carga con cuidado'),
+    _mudStep('4', 'Entrega segura', 'Llevamos tus cosas al destino'),
+    const SizedBox(height: 14),
+    // Cobertura
+    Container(padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.bd)),
+      child: Row(children: [
+        const Icon(Icons.location_on, size: 20, color: AppTheme.ac),
+        const SizedBox(width: 8),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Cobertura', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+          Text('Tulancingo · Pachuca · CDMX · Zona Metropolitana', style: TextStyle(fontSize: 10, color: AppTheme.tm)),
+        ])),
+      ]),
+    ),
+    const SizedBox(height: 8),
+    Container(padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.bd)),
+      child: Row(children: [
+        const Icon(Icons.phone, size: 20, color: AppTheme.gr),
+        const SizedBox(width: 8),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Cotiza ahora', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+          Text('Llámanos o envía WhatsApp para agendar', style: TextStyle(fontSize: 10, color: AppTheme.tm)),
+        ])),
+      ]),
+    ),
   ]);
+
+  Widget _mudOption(IconData ic, String title, String desc, String price, Color c) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: c.withOpacity(0.3)),
+      boxShadow: [BoxShadow(color: c.withOpacity(0.1), blurRadius: 6, offset: const Offset(0, 2))]),
+    child: Row(children: [
+      Container(width: 44, height: 44, decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+        child: Icon(ic, size: 24, color: c)),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c)),
+        Text(desc, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+      ])),
+      Column(children: [
+        Text('Desde', style: TextStyle(fontSize: 8, color: Colors.grey.shade400)),
+        Text(price, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: c)),
+      ]),
+    ]),
+  );
+
+  Widget _mudStep(String num, String title, String desc) => Container(
+    margin: const EdgeInsets.only(bottom: 6), padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.bd)),
+    child: Row(children: [
+      Container(width: 28, height: 28, decoration: BoxDecoration(color: const Color(0xFF6A1B9A), borderRadius: BorderRadius.circular(8)),
+        child: Center(child: Text(num, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white)))),
+      const SizedBox(width: 10),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+        Text(desc, style: TextStyle(fontSize: 9, color: AppTheme.tm)),
+      ])),
+    ]),
+  );
 
   Widget _mapCity(String n, String count, Color c) => Column(children: [
     Container(width: 20, height: 20, decoration: BoxDecoration(shape: BoxShape.circle, color: c,
