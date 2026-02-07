@@ -690,7 +690,7 @@ class _MainAppState extends State<MainApp> {
         ])),
         // Título centrado
         const Expanded(child: Center(child: Text('Cargo-GO', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1.2)))),
-        // Derecha: carrito si hay items
+        // Derecha: carrito o conexión
         if (_cartQty > 0) GestureDetector(onTap: _openCart,
           child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
@@ -698,7 +698,9 @@ class _MainAppState extends State<MainApp> {
               const Icon(Icons.shopping_cart, size: 14, color: AppTheme.gr),
               const SizedBox(width: 4),
               Text('$_cartQty', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.gr)),
-            ]))),
+            ])))
+        else GestureDetector(onTap: _loadApiData,
+          child: Icon(_online ? Icons.cloud_done : Icons.cloud_off, size: 22, color: _online ? AppTheme.gr : AppTheme.rd)),
       ]),
       const SizedBox(height: 8),
       // Buscador blanco
@@ -715,25 +717,6 @@ class _MainAppState extends State<MainApp> {
             Icon(Icons.search, size: 20, color: Colors.grey.shade400),
             const SizedBox(width: 8),
             Text('Buscar productos, negocios...', style: TextStyle(fontSize: 14, color: Colors.grey.shade400)),
-          ]),
-        ),
-      ),
-      const SizedBox(height: 10),
-      // Espacio para anuncios
-      Container(
-        width: double.infinity,
-        height: 100,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.campaign_outlined, size: 28, color: Colors.grey.shade300),
-            const SizedBox(height: 4),
-            Text('Anúnciate aquí', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade400)),
-            Text('Espacio publicitario disponible', style: TextStyle(fontSize: 11, color: Colors.grey.shade300)),
           ]),
         ),
       ),
@@ -984,33 +967,7 @@ class _MainAppState extends State<MainApp> {
     return RefreshIndicator(onRefresh: _loadApiData, color: AppTheme.ac,
       child: ListView(padding: const EdgeInsets.all(14), children: [
       _logoBar(),
-      // Connection indicator
-      GestureDetector(onTap: _loadApiData,
-        child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
-            color: _online ? AppTheme.gr.withOpacity(0.1) : AppTheme.rd.withOpacity(0.1)),
-          child: Row(children: [
-            Icon(_online ? Icons.cloud_done : Icons.cloud_off, size: 14, color: _online ? AppTheme.gr : AppTheme.rd),
-            const SizedBox(width: 6),
-            Text(_online ? 'Conectado a Cargo-GO API' : 'Sin conexión · Datos locales', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: _online ? AppTheme.gr : AppTheme.rd)),
-            const Spacer(),
-            if (_loadingApi) SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5, color: _online ? AppTheme.gr : AppTheme.rd))
-            else Icon(Icons.refresh, size: 14, color: _online ? AppTheme.gr : AppTheme.rd),
-          ]))),
-      // Saturnos + Quick menus
-      GestureDetector(onTap: () => setState(() => _menuScreen = 'farmacia'),
-        child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(colors: [AppTheme.tl.withOpacity(0.15), Colors.transparent])),
-          child: Row(children: [
-            const Text('🪐', style: TextStyle(fontSize: 22)),
-            const SizedBox(width: 8),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Tarjeta Saturnos', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
-              Text('2,450 pts · Canjea →', style: TextStyle(fontSize: 9, color: AppTheme.tl)),
-            ]),
-          ]))),
-      const SizedBox(height: 12),
-      // Stats
+      // Stats - Entregas
       Row(children: [
         _stat('Entregas', sEntregas, Icons.local_shipping, AppTheme.ac),
         _stat('Ingresos', sIngresos, Icons.trending_up, AppTheme.gr),
@@ -1018,14 +975,12 @@ class _MainAppState extends State<MainApp> {
         _stat('Negocios', sNegocios, Icons.store, AppTheme.or),
       ]),
       const SizedBox(height: 12),
-      // Quick access menus
-      Row(children: [
-        _quickMenu('🍲', 'Mamá Chela', AppTheme.or, 'mama'),
-        const SizedBox(width: 8),
-        _quickMenu('🧁', 'Dulce María', AppTheme.pk, 'dulce'),
-        const SizedBox(width: 8),
-        _quickMenu('💊', 'Farmacia', AppTheme.tl, 'farmacia'),
-      ]),
+      // Negocios destacados
+      _negBtn('💊', 'Mi Farmacia', 'Farmacias Madrid · Medicamentos y más', const Color(0xFF1877F2), 'farmacia'),
+      const SizedBox(height: 8),
+      _negBtn('🍲', 'El Restaurante de mi Mamá', 'Comida casera · Antojitos mexicanos', const Color(0xFFFF6B35), 'mama'),
+      const SizedBox(height: 8),
+      _negBtn('🎁', 'Los Regalos Sorpresa de mi Hermana', 'Detalles · Regalos personalizados', const Color(0xFFE91E8C), 'dulce'),
       const SizedBox(height: 14),
       // Favs
       if (_favs.isNotEmpty) ...[
@@ -1064,6 +1019,28 @@ class _MainAppState extends State<MainApp> {
     onTap: () => setState(() => _menuScreen = key),
     child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: c.withOpacity(0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: c.withOpacity(0.15))),
       child: Column(children: [Text(e, style: const TextStyle(fontSize: 26)), Text(l, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.tx)), Text('Ver menú →', style: TextStyle(fontSize: 8, color: c))]))));
+
+  Widget _negBtn(String emoji, String title, String sub, Color c, String key) => GestureDetector(
+    onTap: () => setState(() => _menuScreen = key),
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: c.withOpacity(0.3)),
+      ),
+      child: Row(children: [
+        Text(emoji, style: const TextStyle(fontSize: 28)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: c)),
+          Text(sub, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+        ])),
+        Icon(Icons.arrow_forward_ios, size: 14, color: c),
+      ]),
+    ),
+  );
 
   // ═══ NEGOCIOS ═══
   Widget _negScreen() {
