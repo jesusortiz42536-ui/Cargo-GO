@@ -2129,7 +2129,7 @@ class _MainAppState extends State<MainApp> {
         ),
       ],
       // Grid - cards con foto y ubicación
-      GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.78),
+      GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.72),
         itemCount: filtered.where((n) => n.id != 'c81').length, itemBuilder: (_, i) {
           final n = filtered.where((n) => n.id != 'c81').toList()[i];
           return GestureDetector(onTap: () { if (n.menu != null) setState(() => _menuScreen = n.menu); },
@@ -2138,7 +2138,7 @@ class _MainAppState extends State<MainApp> {
               border: Border.all(color: n.c.withOpacity(0.25), width: 1.2)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 // Foto de red con fallback a emoji
-                Container(height: 80, decoration: BoxDecoration(
+                Container(height: 110, decoration: BoxDecoration(
                   color: n.c.withOpacity(0.15),
                   borderRadius: const BorderRadius.only(topLeft: Radius.circular(19), topRight: Radius.circular(19)),
                   image: DecorationImage(
@@ -2157,7 +2157,7 @@ class _MainAppState extends State<MainApp> {
                       const SizedBox(width: 4),
                       Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(color: AppTheme.bg.withOpacity(0.7), borderRadius: BorderRadius.circular(6)),
-                        child: Text(n.tipo, style: const TextStyle(fontSize: 7, color: AppTheme.tm))),
+                        child: Text(n.tipo, style: const TextStyle(fontSize: 8, color: AppTheme.tm))),
                     ])),
                     // Fav button
                     Positioned(top: 6, right: 6, child: GestureDetector(onTap: () => setState(() => _favs.contains(n.id) ? _favs.remove(n.id) : _favs.add(n.id)),
@@ -2170,25 +2170,25 @@ class _MainAppState extends State<MainApp> {
                         child: const Icon(Icons.location_on, size: 12, color: Colors.white))),
                   ])),
                 // Info
-                Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(n.nom, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Padding(padding: const EdgeInsets.fromLTRB(10, 8, 10, 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(n.nom, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.tx), maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 2),
-                  Text(n.desc, style: const TextStyle(fontSize: 9, color: AppTheme.tm), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(n.desc, style: const TextStyle(fontSize: 11, color: AppTheme.tm), maxLines: 2, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 4),
                   Row(children: [
-                    const Icon(Icons.location_on, size: 10, color: AppTheme.td),
+                    const Icon(Icons.location_on, size: 12, color: AppTheme.td),
                     const SizedBox(width: 2),
-                    Expanded(child: Text(n.zona, style: const TextStyle(fontSize: 8, color: AppTheme.td), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    Expanded(child: Text(n.zona, style: const TextStyle(fontSize: 10, color: AppTheme.td), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ]),
                   const SizedBox(height: 3),
                   Row(children: [
-                    Text('⭐${n.r}', style: const TextStyle(fontSize: 8, color: AppTheme.or)),
+                    Text('⭐${n.r}', style: const TextStyle(fontSize: 9, color: AppTheme.or)),
                     const SizedBox(width: 6),
-                    Text('📦${n.ped}', style: const TextStyle(fontSize: 8, color: AppTheme.tm)),
+                    Text('📦${n.ped}', style: const TextStyle(fontSize: 9, color: AppTheme.tm)),
                   ]),
                   if (n.menu != null) ...[
                     const SizedBox(height: 3),
-                    Text('Ver menú →', style: TextStyle(fontSize: 8, color: n.c, fontWeight: FontWeight.w600)),
+                    Text('Ver menú →', style: TextStyle(fontSize: 9, color: n.c, fontWeight: FontWeight.w600)),
                   ],
                 ])),
               ])));
