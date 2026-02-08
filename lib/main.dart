@@ -2553,17 +2553,27 @@ class _MainAppState extends State<MainApp> {
             boxShadow: [BoxShadow(color: AppTheme.rd.withOpacity(0.2), blurRadius: 10, spreadRadius: 0)],
           ),
           child: Row(children: [
-            Container(width: 32, height: 32, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppTheme.yl, width: 1.5)),
-              child: const Icon(Icons.flash_on, size: 18, color: AppTheme.yl)),
+            Container(width: 34, height: 34, decoration: BoxDecoration(color: AppTheme.rd.withOpacity(0.12), borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.rd.withOpacity(0.4), width: 1)),
+              child: const Center(child: Text('⚡', style: TextStyle(fontSize: 20)))),
             const SizedBox(width: 10),
             const Expanded(child: Text('Agregar Pedido Rápido', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.rd))),
             const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.rd),
           ]),
         ),
       )),
-      // ═══ MAPA REAL - estrella del screen ═══
-      Container(height: 220, margin: const EdgeInsets.only(bottom: 12),
+      // ── Filter pills (arriba del mapa) ──
+      Row(children: [for (var f in [['all','Todos'],['hidalgo','Hidalgo'],['cdmx','CDMX']])
+        Expanded(child: GestureDetector(onTap: () => setState(() => _pedFilter = f[0]),
+          child: Container(margin: const EdgeInsets.symmetric(horizontal: 3), padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _pedFilter == f[0] ? AppTheme.ac : AppTheme.bd, width: 1.2),
+              gradient: _pedFilter == f[0] ? const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1565C0)]) : null,
+              color: _pedFilter == f[0] ? null : Colors.transparent),
+            child: Text(f[1], textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _pedFilter == f[0] ? Colors.white : AppTheme.tm)))))]),
+      const SizedBox(height: 10),
+      // ═══ MAPA REAL - doble tamaño ═══
+      Container(height: 440, margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppTheme.yl, width: 2),
@@ -2622,16 +2632,6 @@ class _MainAppState extends State<MainApp> {
                 _mapPreviewChip('📦 En ruta', '${useApi ? enRuta : pedidos.where((p) => p.est == "ruta").length}'),
               ]))),
           ]))),
-      // ── Filter pills ──
-      Row(children: [for (var f in [['all','Todos'],['hidalgo','Hidalgo'],['cdmx','CDMX']])
-        Expanded(child: GestureDetector(onTap: () => setState(() => _pedFilter = f[0]),
-          child: Container(margin: const EdgeInsets.symmetric(horizontal: 3), padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _pedFilter == f[0] ? AppTheme.ac : AppTheme.bd, width: 1.2),
-              gradient: _pedFilter == f[0] ? const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1565C0)]) : null,
-              color: _pedFilter == f[0] ? null : Colors.transparent),
-            child: Text(f[1], textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _pedFilter == f[0] ? Colors.white : AppTheme.tm)))))]),
-      const SizedBox(height: 12),
       // ── Stats ──
       Row(children: [
         _pedStatNew('En Ruta', enRuta, AppTheme.ac),
