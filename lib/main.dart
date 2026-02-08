@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'services/api_service.dart';
+import 'services/auth_service.dart';
 
 class AppTheme {
   static const bg = Color(0xFF060B18);
@@ -389,7 +390,16 @@ final List<OrderHist> orderHist = [
 
 
 
-void main() => runApp(const CargoGoApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Firebase init - esperar antes de arrancar para que login funcione
+  try {
+    await AuthService.initialize();
+  } catch (e) {
+    debugPrint('[CGO] Firebase init error: $e');
+  }
+  runApp(const CargoGoApp());
+}
 
 class CargoGoApp extends StatelessWidget {
   const CargoGoApp({super.key});
@@ -464,19 +474,81 @@ class _LoginState extends State<LoginScreen> {
   List<String> code = ['','','','','',''];
   bool loading = false;
 
-  void _sendCode() {
-    if (phone.length < 10) return;
-    setState(() => loading = true);
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      setState(() { loading = false; step = 1; });
-    });
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: const TextStyle(color: Colors.white, fontSize: 13)),
+      backgroundColor: const Color(0xFFFF4757),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(16),
+    ));
   }
 
-  void _verify() {
+  void _sendCode() async {
+    if (phone.length < 10) return;
     setState(() => loading = true);
-    Future.delayed(const Duration(milliseconds: 800), () {
+
+    if (!AuthService.isAvailable) {
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (!mounted) return;
+      setState(() { loading = false; step = 1; });
+      _showError('Modo demo: Firebase no configurado. Ingresa cualquier codigo.');
+      return;
+    }
+
+    final error = await AuthService.sendCode(
+      phone,
+      onCodeSent: (id) {
+        if (!mounted) return;
+        setState(() { loading = false; step = 1; });
+      },
+      onError: (msg) {
+        if (!mounted) return;
+        setState(() => loading = false);
+        _showError(msg);
+      },
+    );
+
+    if (error != null && mounted) {
+      setState(() => loading = false);
+      _showError(error);
+    }
+  }
+
+  void _verify() async {
+    final smsCode = code.join();
+    if (smsCode.length < 6) return;
+    setState(() => loading = true);
+
+    if (!AuthService.isAvailable) {
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainApp()));
-    });
+      return;
+    }
+
+    final error = await AuthService.verifyCode(smsCode);
+    if (!mounted) return;
+
+    if (error == null) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainApp()));
+    } else {
+      setState(() => loading = false);
+      _showError(error);
+    }
+  }
+
+  void _signInGoogle() async {
+    setState(() => loading = true);
+    final error = await AuthService.signInWithGoogle();
+    if (!mounted) return;
+    if (error == null) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainApp()));
+    } else {
+      setState(() => loading = false);
+      _showError(error);
+    }
   }
 
   void _goMain() => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainApp()));
@@ -530,20 +602,11 @@ class _LoginState extends State<LoginScreen> {
             const SizedBox(height: 20),
             const Text('o continua con', style: TextStyle(fontSize: 12, color: Color(0xFF506080))),
             const SizedBox(height: 14),
-            // Facebook - azul
-            SizedBox(width: double.infinity, child: ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Text('f', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, fontFamily: 'serif')),
-              label: const Text('Continuar con Facebook', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1877F2), foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), elevation: 0),
-            )),
-            const SizedBox(height: 10),
-            // Instagram - blanco
+            // Google - blanco
             SizedBox(width: double.infinity, child: OutlinedButton.icon(
-              onPressed: () {},
-              icon: const Text('ig', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFFE4405F))),
-              label: const Text('Continuar con Instagram', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              onPressed: loading ? null : _signInGoogle,
+              icon: const Text('G', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF4285F4))),
+              label: const Text('Continuar con Google', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
               style: OutlinedButton.styleFrom(foregroundColor: Colors.black87, backgroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), side: BorderSide.none),
             )),
@@ -1604,7 +1667,7 @@ class _MainAppState extends State<MainApp> {
             n['descripcion'] ?? '',
             '⭐ ${n['calificacion'] ?? 4.5}',
             AppTheme.tl,
-            null,
+            n['id']?.toString() ?? 'api',
           )))),
       ],
       const SizedBox(height: 16),
