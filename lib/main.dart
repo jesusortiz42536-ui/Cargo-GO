@@ -1498,7 +1498,7 @@ class _MainAppState extends State<MainApp> {
                   color: AppTheme.cd.withOpacity(0.95), shape: BoxShape.circle,
                   border: Border.all(color: AppTheme.bd, width: 0.5),
                   boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8)]),
-                child: const Icon(Icons.my_location, size: 20, color: AppTheme.ac))),
+                child: const Icon(Icons.my_location, size: 20, color: Color(0xFF34A853)))),
             const SizedBox(height: 8),
             GestureDetector(onTap: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom + 1),
               child: Container(width: 44, height: 44,
@@ -1896,7 +1896,7 @@ class _MainAppState extends State<MainApp> {
                   if (id != null) { await ApiService.completarEntrega(id); _loadApiData(); }
                 }),
                 const SizedBox(width: 8),
-                _entregaAction('Navegar', Icons.navigation, AppTheme.cy, () {
+                _entregaAction('Navegar', Icons.navigation, const Color(0xFF34A853), () {
                   final lat = e['lat'] as double?;
                   final lng = e['lng'] as double?;
                   if (lat != null && lng != null) _openNavigation(lat, lng, 'Entrega #${e['id']}');
@@ -2088,7 +2088,7 @@ class _MainAppState extends State<MainApp> {
               Text(n['nombre'] ?? 'Negocio', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
               Text(n['descripcion'] ?? '', style: const TextStyle(fontSize: 9, color: AppTheme.tm), maxLines: 1, overflow: TextOverflow.ellipsis),
               Row(children: [
-                const Icon(Icons.location_on, size: 10, color: AppTheme.td),
+                const Icon(Icons.location_on, size: 10, color: Color(0xFF34A853)),
                 const SizedBox(width: 2),
                 Text(n['direccion'] ?? n['zona'] ?? '', style: const TextStyle(fontSize: 8, color: AppTheme.td), maxLines: 1, overflow: TextOverflow.ellipsis),
               ]),
@@ -2166,7 +2166,7 @@ class _MainAppState extends State<MainApp> {
                     // Location pin si tiene coordenadas
                     if (_negCoords.containsKey(n.id))
                       Positioned(top: 6, left: 6, child: Container(width: 20, height: 20,
-                        decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.8), shape: BoxShape.circle),
+                        decoration: BoxDecoration(color: const Color(0xFF34A853).withOpacity(0.9), shape: BoxShape.circle),
                         child: const Icon(Icons.location_on, size: 12, color: Colors.white))),
                   ])),
                 // Info
@@ -2176,7 +2176,7 @@ class _MainAppState extends State<MainApp> {
                   Text(n.desc, style: const TextStyle(fontSize: 11, color: AppTheme.tm), maxLines: 2, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 4),
                   Row(children: [
-                    const Icon(Icons.location_on, size: 12, color: AppTheme.td),
+                    const Icon(Icons.location_on, size: 12, color: Color(0xFF34A853)),
                     const SizedBox(width: 2),
                     Expanded(child: Text(n.zona, style: const TextStyle(fontSize: 10, color: AppTheme.td), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ]),
@@ -2369,13 +2369,13 @@ class _MainAppState extends State<MainApp> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setModalState) {
-        Widget _field(String label, TextEditingController ctrl, {IconData icon = Icons.edit, int lines = 1}) =>
+        Widget _field(String label, TextEditingController ctrl, {IconData icon = Icons.edit, int lines = 1, Color? iconColor}) =>
           Padding(padding: const EdgeInsets.only(bottom: 10), child: TextField(
             controller: ctrl, maxLines: lines,
             style: const TextStyle(color: AppTheme.tx, fontSize: 13),
             decoration: InputDecoration(
               labelText: label, labelStyle: const TextStyle(color: AppTheme.tm, fontSize: 12),
-              prefixIcon: Icon(icon, size: 18, color: AppTheme.td),
+              prefixIcon: Icon(icon, size: 18, color: iconColor ?? AppTheme.td),
               filled: false,
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.bd, width: 1)),
               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.ac, width: 1.5)),
@@ -2443,7 +2443,7 @@ class _MainAppState extends State<MainApp> {
                 const SizedBox(height: 14),
                 // Campos comunes
                 _field('Teléfono del cliente', _prTel, icon: Icons.phone),
-                _field('Dirección origen', _prOrigen, icon: Icons.location_on),
+                _field('Dirección origen', _prOrigen, icon: Icons.location_on, iconColor: const Color(0xFF34A853)),
                 _field('Dirección destino', _prDestino, icon: Icons.flag),
                 // Campos específicos por tipo
                 if (_prTipo == 'comida') ...[
@@ -2628,7 +2628,7 @@ class _MainAppState extends State<MainApp> {
                   decoration: BoxDecoration(color: AppTheme.cd.withOpacity(0.85), borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppTheme.ac.withOpacity(0.3), width: 0.5)),
                   child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.map, size: 14, color: AppTheme.ac),
+                    Icon(Icons.map, size: 14, color: Color(0xFF34A853)),
                     SizedBox(width: 6),
                     Text('Mapa de Entregas', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
                   ])),
@@ -2835,7 +2835,7 @@ class _MainAppState extends State<MainApp> {
     Container(padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.bd, width: 1.2)),
       child: Row(children: [
-        const Icon(Icons.location_on, size: 20, color: AppTheme.ac),
+        const Icon(Icons.location_on, size: 20, color: Color(0xFF34A853)),
         const SizedBox(width: 8),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Cobertura', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
@@ -2918,8 +2918,8 @@ class _MainAppState extends State<MainApp> {
       decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20),
         border: Border.all(color: a.main ? AppTheme.ac.withOpacity(0.4) : AppTheme.bd, width: 1.2)),
       child: Row(children: [
-        Container(width: 36, height: 36, decoration: BoxDecoration(color: (a.main ? AppTheme.ac : AppTheme.tm).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-          child: Icon(Icons.location_on, size: 18, color: a.main ? AppTheme.ac : AppTheme.tm)),
+        Container(width: 36, height: 36, decoration: BoxDecoration(color: const Color(0xFF34A853).withOpacity(a.main ? 0.15 : 0.08), borderRadius: BorderRadius.circular(10)),
+          child: Icon(Icons.location_on, size: 18, color: const Color(0xFF34A853).withOpacity(a.main ? 1.0 : 0.6))),
         const SizedBox(width: 10),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [Text(a.l, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.tx)), if (a.main) const Text(' Principal', style: TextStyle(fontSize: 8, color: AppTheme.ac))]),
