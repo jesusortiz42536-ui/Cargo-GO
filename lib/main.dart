@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'services/api_service.dart';
@@ -26,24 +27,7 @@ class AppTheme {
   static const td = Color(0xFF506080);
 }
 
-// Google Maps dark style JSON
-const String _darkMapStyle = '''[
-  {"elementType":"geometry","stylers":[{"color":"#0d1117"}]},
-  {"elementType":"labels.text.fill","stylers":[{"color":"#8899b4"}]},
-  {"elementType":"labels.text.stroke","stylers":[{"color":"#0d1117"}]},
-  {"featureType":"administrative","elementType":"geometry.stroke","stylers":[{"color":"#1c2d4a"}]},
-  {"featureType":"administrative.land_parcel","elementType":"labels.text.fill","stylers":[{"color":"#506080"}]},
-  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#111d33"}]},
-  {"featureType":"poi","elementType":"labels.text.fill","stylers":[{"color":"#8899b4"}]},
-  {"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#0c1a10"}]},
-  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#1c2d4a"}]},
-  {"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#111d33"}]},
-  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#2d7aff"}]},
-  {"featureType":"road.highway","elementType":"geometry.stroke","stylers":[{"color":"#0d47a1"}]},
-  {"featureType":"transit","elementType":"geometry","stylers":[{"color":"#111d33"}]},
-  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#060b18"}]},
-  {"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#506080"}]}
-]''';
+// Dark map tiles: CartoDB Dark Matter (no API key needed)
 
 class MenuItem {
   final String n, d;
@@ -334,6 +318,113 @@ final List<Negocio> negCdmx = [
   Negocio(id:"c80",nom:"Mercado Roma",e:"🏪",zona:"Roma",desc:"Food court gourmet",r:4.5,ped:1600,c:AppTheme.pu,tipo:"mercado"),
   Negocio(id:"c81",nom:"Costco",e:"🛒",zona:"Satélite · Coyoacán · Interlomas",desc:"Mayoreo · Electrónica · Alimentos",r:4.7,ped:5200,c:const Color(0xFF005DAA),tipo:"super"),
 ];
+
+// ═══ COORDENADAS REALES DE TODOS LOS NEGOCIOS ═══
+const _negCoords = <String, List<double>>{
+  // ── Hidalgo (Tulancingo ~20.08, -98.38) ──
+  'h01': [20.0844, -98.3815], // Farmacias Madrid - Centro
+  'h02': [20.0838, -98.3808], // Mamá Chela - Centro
+  'h03': [20.0780, -98.3730], // Dulce María - La Floresta
+  'h04': [20.0850, -98.3825], // Tacos El Güero - Centro
+  'h05': [20.0890, -98.3770], // Carnitas Don Pepe - San Antonio
+  'h06': [20.0760, -98.3880], // Pollos El Rey - Las Torres
+  'h07': [20.0842, -98.3820], // Café Tulancingo - Centro
+  'h08': [20.0920, -98.3760], // Tortas La Abuela - Jaltepec
+  'h09': [20.0835, -98.3830], // Barbacoa Los Reyes - Centro
+  'h10': [20.0840, -98.3810], // Pastes El Portal - Centro
+  'h11': [20.0775, -98.3740], // Panadería San José - La Floresta
+  'h12': [20.0810, -98.3900], // Pulquería La Noria - Santiago
+  'h13': [20.0670, -98.3650], // Abarrotes Doña Lupe - Cuautepec
+  'h14': [20.0765, -98.3875], // Pizzas Tulancingo - Las Torres
+  'h15': [20.0845, -98.3800], // Jugos Mary - Mercado
+  'h16': [20.0848, -98.3818], // Taller Bicis - Centro
+  'h17': [20.0785, -98.3735], // Flores El Jardín - La Floresta
+  'h18': [20.0843, -98.3805], // Carnicería Hidalgo - Mercado
+  'h19': [20.0847, -98.3822], // Ferretería Central - Centro
+  'h20': [20.0836, -98.3812], // Papelería Escolar - Centro
+  // ── CDMX (~19.43, -99.13) ──
+  'c01': [19.4407, -99.1567], // El Califa de León - San Rafael
+  'c02': [19.3500, -99.1625], // Café El Jarocho - Coyoacán
+  'c03': [19.4326, -99.1332], // Los Cocuyos - Centro Histórico
+  'c04': [19.3505, -99.1630], // Mercado Coyoacán
+  'c05': [19.4186, -99.1619], // Tacos Orinoco - Roma Norte
+  'c06': [19.4100, -99.1610], // Por Siempre Vegana - Roma Sur
+  'c07': [19.4330, -99.1340], // Churrería El Moro - Centro
+  'c08': [19.4335, -99.1345], // Pastelería Ideal - Centro
+  'c09': [19.4340, -99.1950], // La Casa de Toño - Polanco
+  'c10': [19.4000, -99.1700], // Taquería Los Parados - Insurgentes
+  'c11': [19.2636, -99.1044], // Boing! Factory - Xochimilco
+  'c12': [19.3980, -99.1600], // Birria El Texano - Narvarte
+  'c13': [19.4130, -99.1250], // Mercado Jamaica
+  'c14': [19.4130, -99.1720], // Helados Tepoznieves - Condesa
+  'c15': [19.4190, -99.1625], // Panadería Rosetta - Roma Norte
+  'c16': [19.2900, -99.1700], // Tortas Río - Tlalpan
+  'c17': [19.3870, -99.1200], // Mariscos La Viga
+  'c18': [19.4020, -99.1880], // Tamales Doña Emi - Tacubaya
+  'c19': [19.4320, -99.1325], // Gorditas Doña Tota - Centro
+  'c20': [19.4290, -99.1560], // Café Habana - Juárez
+  'c21': [19.3900, -99.1720], // Quesadillas Doña Mary - Del Valle
+  'c22': [19.4400, -99.1250], // Tacos Canasta Javi - Tepito
+  'c23': [19.4315, -99.1360], // Mercado San Juan - Centro
+  'c24': [19.4870, -99.1860], // Carnitas Don Güicho - Azcapotzalco
+  'c25': [19.4328, -99.1335], // Farmacia del Ahorro - Centro
+  'c26': [19.4010, -99.1690], // La Especial de París - Insurgentes
+  'c27': [19.4340, -99.1350], // Café de Tacuba - Centro
+  'c28': [19.4322, -99.1338], // El Huequito - Centro
+  'c29': [19.3510, -99.1620], // Nevería Roxy - Coyoacán
+  'c30': [19.4780, -99.2380], // Pan Bimbo Outlet - Naucalpan
+  'c31': [19.4318, -99.1330], // Mariscos El Caguamo - Centro
+  'c32': [19.4135, -99.1715], // Tlayudas Oaxaqueñas - Condesa
+  'c33': [19.4345, -99.1955], // Pollos Río - Polanco
+  'c34': [19.4260, -99.1640], // Esquites Don Beto - Reforma
+  'c35': [19.4200, -99.1450], // Mezcalería - Doctores
+  'c36': [19.3650, -99.2710], // Sushi Itto Express - Santa Fe
+  'c37': [19.3900, -99.1800], // Pizzas Domino - Nápoles
+  'c38': [19.3508, -99.1628], // Tostadas Coyoacán
+  'c39': [19.4325, -99.1342], // Dulcería de Celaya - Centro
+  'c40': [19.4128, -99.1718], // Fonda Margarita - Condesa
+  'c41': [19.4405, -99.1570], // La Polar - San Rafael
+  'c42': [19.3950, -99.1710], // Taco Inn - Insurgentes Sur
+  'c43': [19.4350, -99.1960], // Superama Express - Polanco
+  'c44': [19.4280, -99.1255], // La Merced Orgánica
+  'c45': [19.4310, -99.1348], // Papelería Lumen - Centro
+  'c46': [19.3600, -99.0900], // Ferretería Truper - Iztapalapa
+  'c47': [19.4355, -99.1965], // Florerías CDMX - Polanco
+  'c48': [19.4185, -99.1615], // Alitas y Boneless - Roma
+  'c49': [19.4005, -99.1695], // VIPS Insurgentes
+  'c50': [19.3905, -99.1725], // Tamal Oaxaqueño - Del Valle
+  'c51': [19.4192, -99.1622], // Ramen Shinju - Roma Norte
+  'c52': [19.4132, -99.1722], // Hamburguesas Corral - Condesa
+  'c53': [19.3515, -99.1618], // Café Punta del Cielo - Coyoacán
+  'c54': [19.4180, -99.1612], // Waffles & Crêpes - Roma
+  'c55': [19.4285, -99.1555], // Tortería Niza - Juárez
+  'c56': [19.4105, -99.1608], // Pozolería Tía Calla - Roma Sur
+  'c57': [19.3985, -99.1605], // Lavandería Express - Narvarte
+  'c58': [19.4348, -99.1958], // Tintorería Premium - Polanco
+  'c59': [19.4188, -99.1618], // Barbería Old School - Roma
+  'c60': [19.3908, -99.1728], // Veterinaria PetCare - Del Valle
+  'c61': [19.3520, -99.1615], // Cervecería Primus - Coyoacán
+  'c62': [19.4332, -99.1328], // Comida China Wing's - Centro
+  'c63': [19.4138, -99.1725], // Empanadas Argentinas - Condesa
+  'c64': [19.4183, -99.1616], // Jugos Natural Express - Roma
+  'c65': [19.4140, -99.1728], // El Pescadito - Condesa
+  'c66': [19.4270, -99.1530], // Korean BBQ Mex - Zona Rosa
+  'c67': [19.4405, -99.1248], // Abarrotes Don Toño - Tepito
+  'c68': [19.3525, -99.1612], // Tienda Naturista - Coyoacán
+  'c69': [19.4312, -99.1582], // Librería Gandhi - Miguel Ángel
+  'c70': [19.4335, -99.1355], // Copias Print Center - Centro
+  'c71': [19.4295, -99.1565], // Bike Messenger - Juárez
+  'c72': [19.4360, -99.1970], // Carnicería Premium - Polanco
+  'c73': [19.3950, -99.0955], // Tortillería La Güera - Iztacalco
+  'c74': [19.4785, -99.2385], // Mueblería Express - Naucalpan
+  'c75': [19.4195, -99.1628], // Pastes Hidalguenses - Roma
+  'c76': [19.3988, -99.1608], // Cevichería Pacífico - Narvarte
+  'c77': [19.4145, -99.1730], // Brownies & Co. - Condesa
+  'c78': [19.4338, -99.1358], // Dona María Mole - Centro
+  'c79': [19.3992, -99.1612], // Cochinita Express - Narvarte
+  'c80': [19.4178, -99.1608], // Mercado Roma
+  'c81': [19.5098, -99.2338], // Costco Satélite
+};
 
 final List<Pedido> pedidos = [
   Pedido(id:"CGO-2601",cl:"María López",orig:"Farmacias Madrid",dest:"Centro, Tulancingo",est:"ruta",m:245,h:"14:32",prog:68,city:"hidalgo"),
@@ -680,10 +771,10 @@ class _MainAppState extends State<MainApp> {
   List<Map<String, dynamic>> _apiEntregas = []; // Repartidores API
   Map<String, dynamic> _apiPedidosStats = {};
 
-  // ═══ GOOGLE MAPS ═══
-  GoogleMapController? _mapController;
+  // ═══ FLUTTER MAP ═══
+  final MapController _mapController = MapController();
   LatLng _mapCenter = const LatLng(20.0833, -98.3833); // Tulancingo default
-  final Set<Marker> _markers = {};
+  final List<Map<String, dynamic>> _markerData = [];
   Position? _currentPos;
   bool _mapReady = false;
   String _trackFolio = '';
@@ -705,6 +796,7 @@ class _MainAppState extends State<MainApp> {
   void initState() {
     super.initState();
     _loadCache(); // 8. Cargar cache al iniciar
+    _updateMapMarkers(); // Llenar markers desde el inicio
   }
 
   // ═══ 8. CACHE OFFLINE ═══
@@ -811,14 +903,8 @@ class _MainAppState extends State<MainApp> {
       setState(() {
         _currentPos = pos;
         _mapCenter = LatLng(pos.latitude, pos.longitude);
-        _markers.add(Marker(
-          markerId: const MarkerId('mi_ubicacion'),
-          position: LatLng(pos.latitude, pos.longitude),
-          infoWindow: const InfoWindow(title: 'Mi Ubicación'),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-        ));
       });
-      _mapController?.animateCamera(CameraUpdate.newLatLng(_mapCenter));
+      _mapController.move(_mapCenter, _mapController.camera.zoom);
     } catch (e) {
       debugPrint('[GPS] Error: $e');
     }
@@ -826,7 +912,12 @@ class _MainAppState extends State<MainApp> {
 
   // ═══ NEGOCIOS MAP DATA (con coordenadas reales) ═══
   static final List<Map<String, dynamic>> _mapPlaces = [
-    {'id': 'farm', 'nom': 'Farmacias Madrid', 'dir': 'Av. Juárez 123, Centro, Tulancingo', 'tipo': 'farmacia', 'e': '💊', 'lat': 20.0844, 'lng': -98.3815, 'r': 5.0, 'tel': '+527751234567', 'h': 'Lun-Sáb 8:00-21:00', 'dist': '0.5 km', 'tiempo': '3 min'},
+    // ── Farmacias Madrid - Sucursales reales Tulancingo ──
+    {'id': 'farm_centro', 'nom': 'Farmacias Madrid - Centro', 'dir': 'Av. Juárez 123, Centro, Tulancingo', 'tipo': 'farmacia', 'e': '💊', 'lat': 20.0844, 'lng': -98.3815, 'r': 5.0, 'tel': '+527751234567', 'h': 'Lun-Sáb 8:00-21:00', 'dist': '0.5 km', 'tiempo': '3 min', 'suc': 'matriz', 'color': 0xFF00E676},
+    {'id': 'farm_santa_maria', 'nom': 'Farmacias Madrid - Suc. Santa María', 'dir': 'Col. Santa María, Tulancingo', 'tipo': 'farmacia', 'e': '💊', 'lat': 20.0790, 'lng': -98.3755, 'r': 4.9, 'tel': '+527751234570', 'h': 'Lun-Sáb 8:00-21:00', 'dist': '1.0 km', 'tiempo': '5 min', 'suc': 'santa maría', 'color': 0xFF00B0FF},
+    {'id': 'farm_panteon', 'nom': 'Farmacias Madrid - Suc. Panteón', 'dir': 'Cerca del Panteón Municipal, Tulancingo', 'tipo': 'farmacia', 'e': '💊', 'lat': 20.0870, 'lng': -98.3870, 'r': 4.8, 'tel': '+527751234571', 'h': 'Lun-Sáb 8:00-21:00', 'dist': '1.2 km', 'tiempo': '6 min', 'suc': 'panteón', 'color': 0xFFFF6D00},
+    {'id': 'farm_caballito', 'nom': 'Farmacias Madrid - Suc. Caballito', 'dir': 'Zona del Caballito, Tulancingo', 'tipo': 'farmacia', 'e': '💊', 'lat': 20.0810, 'lng': -98.3900, 'r': 4.9, 'tel': '+527751234572', 'h': 'Lun-Sáb 8:00-21:00', 'dist': '1.3 km', 'tiempo': '6 min', 'suc': 'caballito', 'color': 0xFFE040FB},
+    {'id': 'farm_lazaro', 'nom': 'Farmacias Madrid - Suc. Lázaro Cárdenas', 'dir': 'Av. Lázaro Cárdenas, Tulancingo', 'tipo': 'farmacia', 'e': '💊', 'lat': 20.0900, 'lng': -98.3780, 'r': 4.8, 'tel': '+527751234573', 'h': 'Lun-Sáb 8:00-21:00', 'dist': '1.5 km', 'tiempo': '7 min', 'suc': 'lázaro cárdenas', 'color': 0xFFFFD740},
     {'id': 'rest', 'nom': 'El Restaurante de mi Mamá', 'dir': 'Calle Hidalgo 45, Centro, Tulancingo', 'tipo': 'comida', 'e': '🍲', 'lat': 20.0830, 'lng': -98.3790, 'r': 4.9, 'tel': '+527751234568', 'h': 'Lun-Dom 8:00-20:00', 'dist': '0.8 km', 'tiempo': '5 min'},
     {'id': 'regalo', 'nom': 'Regalos Sorpresa de mi Hermana', 'dir': 'Blvd. Felipe Ángeles 78, Tulancingo', 'tipo': 'regalos', 'e': '🎁', 'lat': 20.0860, 'lng': -98.3850, 'r': 4.8, 'tel': '+527751234569', 'h': 'Lun-Sáb 10:00-19:00', 'dist': '1.2 km', 'tiempo': '8 min'},
     {'id': 'hq', 'nom': 'Cargo-GO HQ', 'dir': 'Centro, Tulancingo, Hidalgo', 'tipo': 'oficina', 'e': '📦', 'lat': 20.0833, 'lng': -98.3833, 'r': 5.0, 'tel': '+527751234560', 'h': '24/7', 'dist': '0 km', 'tiempo': '0 min'},
@@ -835,31 +926,36 @@ class _MainAppState extends State<MainApp> {
     {'id': 'costco_coy', 'nom': 'Costco Coyoacán', 'dir': 'Av. División del Norte, Coyoacán', 'tipo': 'super', 'e': '🛒', 'lat': 19.3437, 'lng': -99.1574, 'r': 4.6, 'tel': '+525598765433', 'h': 'Lun-Dom 9:00-21:00', 'dist': '195 km', 'tiempo': '2h 45min'},
   ];
 
+  // ═══ MAP MARKER COLOR BY TYPE ═══
+  Color _markerColor(String tipo) {
+    switch (tipo) {
+      case 'farmacia': return AppTheme.gr;
+      case 'comida': return AppTheme.or;
+      case 'cafe': return const Color(0xFF78350F);
+      case 'postres': return AppTheme.pk;
+      case 'bebidas': return AppTheme.yl;
+      case 'super': case 'mercado': return AppTheme.ac;
+      case 'mariscos': return AppTheme.cy;
+      case 'servicios': return AppTheme.pu;
+      case 'panaderia': return const Color(0xFFA16207);
+      case 'carniceria': return AppTheme.rd;
+      case 'flores': return const Color(0xFFE11D48);
+      case 'regalos': return AppTheme.pk;
+      case 'oficina': return AppTheme.pu;
+      case 'entrega': return AppTheme.yl;
+      default: return AppTheme.rd;
+    }
+  }
+
   // ═══ MAP MARKERS ═══
   void _updateMapMarkers() {
-    _markers.clear();
+    _markerData.clear();
     final places = _mapFilter == 'all' ? _mapPlaces :
       _mapPlaces.where((p) => p['tipo'] == _mapFilter).toList();
 
+    // Sucursales y lugares fijos
     for (final p in places) {
-      final lat = p['lat'] as double;
-      final lng = p['lng'] as double;
-      double hue;
-      switch (p['tipo']) {
-        case 'farmacia': hue = BitmapDescriptor.hueGreen; break;
-        case 'comida': hue = BitmapDescriptor.hueOrange; break;
-        case 'super': hue = BitmapDescriptor.hueBlue; break;
-        case 'regalos': hue = BitmapDescriptor.hueRose; break;
-        case 'oficina': hue = BitmapDescriptor.hueViolet; break;
-        default: hue = BitmapDescriptor.hueRed;
-      }
-      _markers.add(Marker(
-        markerId: MarkerId(p['id']),
-        position: LatLng(lat, lng),
-        infoWindow: InfoWindow(title: p['nom'], snippet: p['dir']),
-        icon: BitmapDescriptor.defaultMarkerWithHue(hue),
-        onTap: () => setState(() => _selectedMapPlace = p),
-      ));
+      _markerData.add(p);
     }
 
     // Entregas en ruta (de API real)
@@ -868,28 +964,62 @@ class _MainAppState extends State<MainApp> {
       final lat = e['lat'] as double?;
       final lng = e['lng'] as double?;
       if (lat != null && lng != null) {
-        _markers.add(Marker(
-          markerId: MarkerId('entrega_$i'),
-          position: LatLng(lat, lng),
-          infoWindow: InfoWindow(title: 'Entrega #${e['id'] ?? i}', snippet: e['estado'] ?? ''),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
-          onTap: () => setState(() => _selectedMapPlace = {
-            'nom': 'Entrega #${e['id']}', 'dir': e['direccion_destino'] ?? '', 'e': '📦',
-            'lat': lat, 'lng': lng, 'tipo': 'entrega', 'estado': e['estado'],
-          }),
-        ));
+        _markerData.add({
+          'id': 'entrega_$i', 'nom': 'Entrega #${e['id'] ?? i}', 'dir': e['direccion_destino'] ?? '',
+          'e': '📦', 'lat': lat, 'lng': lng, 'tipo': 'entrega', 'estado': e['estado'],
+        });
       }
     }
 
-    // Mi ubicación
-    if (_currentPos != null) {
-      _markers.add(Marker(
-        markerId: const MarkerId('mi_ubicacion'),
-        position: LatLng(_currentPos!.latitude, _currentPos!.longitude),
-        infoWindow: const InfoWindow(title: 'Mi Ubicación'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+    // Negocios (todos con coordenadas)
+    final existingIds = _markerData.map((d) => d['id']).toSet();
+    for (final n in [...negHidalgo, ...negCdmx]) {
+      final coords = _negCoords[n.id];
+      if (coords == null || existingIds.contains(n.id)) continue;
+      _markerData.add({
+        'id': 'neg_${n.id}', 'nom': n.nom, 'dir': n.zona, 'e': n.e,
+        'lat': coords[0], 'lng': coords[1], 'tipo': n.tipo, 'r': n.r,
+      });
+    }
+
+    if (mounted) setState(() {});
+  }
+
+  // Build flutter_map marker widgets from data
+  List<Marker> _buildMapMarkers() {
+    final markers = <Marker>[];
+    for (final d in _markerData) {
+      final lat = d['lat'] as double?;
+      final lng = d['lng'] as double?;
+      if (lat == null || lng == null) continue;
+      final color = _markerColor(d['tipo'] ?? '');
+      final emoji = d['e'] ?? '📍';
+      markers.add(Marker(
+        point: LatLng(lat, lng), width: 36, height: 36,
+        child: GestureDetector(
+          onTap: () => setState(() => _selectedMapPlace = d),
+          child: Container(
+            decoration: BoxDecoration(
+              color: color, shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [BoxShadow(color: color.withOpacity(0.5), blurRadius: 8)]),
+            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 16))),
+          )),
       ));
     }
+    // Mi ubicación
+    if (_currentPos != null) {
+      markers.add(Marker(
+        point: LatLng(_currentPos!.latitude, _currentPos!.longitude), width: 40, height: 40,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppTheme.ac, shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [BoxShadow(color: AppTheme.ac.withOpacity(0.6), blurRadius: 12)]),
+          child: const Icon(Icons.person, size: 20, color: Colors.white)),
+      ));
+    }
+    return markers;
   }
 
   // ═══ TRACKING ═══
@@ -906,14 +1036,12 @@ class _MainAppState extends State<MainApp> {
       ));
       if (lat != null && lng != null) {
         setState(() {
-          _markers.add(Marker(
-            markerId: MarkerId('track_$folio'),
-            position: LatLng(lat, lng),
-            infoWindow: InfoWindow(title: folio, snippet: estado),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          ));
+          _markerData.add({
+            'id': 'track_$folio', 'nom': folio, 'dir': estado,
+            'e': '📦', 'lat': lat, 'lng': lng, 'tipo': 'entrega',
+          });
         });
-        _mapController?.animateCamera(CameraUpdate.newLatLng(LatLng(lat, lng)));
+        _mapController.move(LatLng(lat, lng), _mapController.camera.zoom);
       }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -935,7 +1063,7 @@ class _MainAppState extends State<MainApp> {
   }
 
   // ═══ TOP BAR (aparece en todas las pantallas) ═══
-  Widget _topBar() => Padding(
+  Widget _topBar({Widget? bottom}) => Padding(
     padding: const EdgeInsets.only(bottom: 14),
     child: Column(children: [
       // Perfil + título + iconos
@@ -966,8 +1094,8 @@ class _MainAppState extends State<MainApp> {
             ]))),
       ]),
       const SizedBox(height: 12),
-      // Buscador neón
-      Container(
+      // Bottom widget o buscador neón por default
+      bottom ?? Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 14),
         decoration: BoxDecoration(
@@ -1223,7 +1351,7 @@ class _MainAppState extends State<MainApp> {
   Widget _navBtn(int i, IconData ic, String l) {
     final bool active = _tab == i;
     return Expanded(child: InkWell(
-      onTap: () => setState(() => _tab = i),
+      onTap: () { setState(() => _tab = i); if (i == 2 && _markerData.isEmpty) _updateMapMarkers(); },
       child: Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(
           padding: const EdgeInsets.all(6),
@@ -1266,23 +1394,23 @@ class _MainAppState extends State<MainApp> {
     return Scaffold(
       backgroundColor: AppTheme.bg,
       body: Stack(children: [
-        // ── Google Map (full screen) ──
-        GoogleMap(
-          initialCameraPosition: CameraPosition(target: _mapCenter, zoom: 12),
-          markers: _markers,
-          onMapCreated: (controller) {
-            _mapController = controller;
-            _mapReady = true;
-            controller.setMapStyle(_darkMapStyle);
-            _getCurrentLocation();
-            _updateMapMarkers();
-          },
-          myLocationEnabled: true,
-          myLocationButtonEnabled: false,
-          zoomControlsEnabled: false,
-          mapToolbarEnabled: false,
-          compassEnabled: false,
-          onTap: (_) => setState(() => _selectedMapPlace = null),
+        // ── Flutter Map (full screen) ──
+        FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: _mapCenter, initialZoom: 12,
+            onTap: (_, __) => setState(() => _selectedMapPlace = null),
+            onMapReady: () {
+              _mapReady = true;
+              _getCurrentLocation();
+              _updateMapMarkers();
+            },
+          ),
+          children: [
+            TileLayer(urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+              subdomains: const ['a', 'b', 'c', 'd']),
+            MarkerLayer(markers: _buildMapMarkers()),
+          ],
         ),
 
         // ── Top overlay: Search bar + filters ──
@@ -1357,7 +1485,7 @@ class _MainAppState extends State<MainApp> {
                   boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8)]),
                 child: const Icon(Icons.my_location, size: 20, color: AppTheme.ac))),
             const SizedBox(height: 8),
-            GestureDetector(onTap: () => _mapController?.animateCamera(CameraUpdate.zoomIn()),
+            GestureDetector(onTap: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom + 1),
               child: Container(width: 44, height: 44,
                 decoration: BoxDecoration(
                   color: AppTheme.cd.withOpacity(0.95), shape: BoxShape.circle,
@@ -1365,7 +1493,7 @@ class _MainAppState extends State<MainApp> {
                   boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8)]),
                 child: const Icon(Icons.add, size: 20, color: AppTheme.tx))),
             const SizedBox(height: 8),
-            GestureDetector(onTap: () => _mapController?.animateCamera(CameraUpdate.zoomOut()),
+            GestureDetector(onTap: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom - 1),
               child: Container(width: 44, height: 44,
                 decoration: BoxDecoration(
                   color: AppTheme.cd.withOpacity(0.95), shape: BoxShape.circle,
@@ -1417,12 +1545,23 @@ class _MainAppState extends State<MainApp> {
           decoration: BoxDecoration(color: AppTheme.bd, borderRadius: BorderRadius.circular(2)))),
         // Name + close
         Row(children: [
-          Container(width: 44, height: 44, decoration: BoxDecoration(
-            color: AppTheme.ac.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
-            child: Center(child: Text(place['e'] ?? '📍', style: const TextStyle(fontSize: 22)))),
+          if (place['suc'] != null)
+            Container(width: 44, height: 44, decoration: BoxDecoration(
+              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+                colors: [Color(place['color'] as int), Color.lerp(Color(place['color'] as int), Colors.black, 0.3)!]),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [BoxShadow(color: Color(place['color'] as int).withOpacity(0.4), blurRadius: 8)]),
+              child: const Center(child: Text('✚', style: TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.w900))))
+          else
+            Container(width: 44, height: 44, decoration: BoxDecoration(
+              color: AppTheme.ac.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+              child: Center(child: Text(place['e'] ?? '📍', style: const TextStyle(fontSize: 22)))),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(place['nom'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.tx)),
+            if (place['suc'] != null)
+              Text('Sucursal ${(place['suc'] as String)[0].toUpperCase()}${(place['suc'] as String).substring(1)}${place['suc'] == 'matriz' ? ' (Principal)' : ''}',
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(place['color'] as int))),
             Text(place['dir'] ?? '', style: const TextStyle(fontSize: 11, color: AppTheme.tm)),
           ])),
           GestureDetector(
@@ -1983,15 +2122,37 @@ class _MainAppState extends State<MainApp> {
               color: Colors.transparent, borderRadius: BorderRadius.circular(20),
               border: Border.all(color: n.c.withOpacity(0.25), width: 1.2)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // Foto placeholder con color
-                Container(height: 70, decoration: BoxDecoration(
+                // Foto de red con fallback a emoji
+                Container(height: 80, decoration: BoxDecoration(
                   color: n.c.withOpacity(0.15),
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(19), topRight: Radius.circular(19))),
+                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(19), topRight: Radius.circular(19)),
+                  image: DecorationImage(
+                    image: NetworkImage('https://picsum.photos/seed/${n.id}/400/200'),
+                    fit: BoxFit.cover,
+                    onError: (_, __) {})),
                   child: Stack(children: [
-                    Center(child: Text(n.e, style: const TextStyle(fontSize: 34))),
+                    // Gradient overlay para legibilidad
+                    Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.only(topLeft: Radius.circular(19), topRight: Radius.circular(19)),
+                      gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, n.c.withOpacity(0.6)])))),
+                    // Emoji + tipo badge
+                    Positioned(bottom: 4, left: 8, child: Row(children: [
+                      Text(n.e, style: const TextStyle(fontSize: 20)),
+                      const SizedBox(width: 4),
+                      Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(color: AppTheme.bg.withOpacity(0.7), borderRadius: BorderRadius.circular(6)),
+                        child: Text(n.tipo, style: const TextStyle(fontSize: 7, color: AppTheme.tm))),
+                    ])),
+                    // Fav button
                     Positioned(top: 6, right: 6, child: GestureDetector(onTap: () => setState(() => _favs.contains(n.id) ? _favs.remove(n.id) : _favs.add(n.id)),
                       child: Container(width: 26, height: 26, decoration: BoxDecoration(color: AppTheme.bg.withOpacity(0.6), shape: BoxShape.circle),
                         child: Center(child: Text(_favs.contains(n.id) ? '❤️' : '🤍', style: const TextStyle(fontSize: 12)))))),
+                    // Location pin si tiene coordenadas
+                    if (_negCoords.containsKey(n.id))
+                      Positioned(top: 6, left: 6, child: Container(width: 20, height: 20,
+                        decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.8), shape: BoxShape.circle),
+                        child: const Icon(Icons.location_on, size: 12, color: Colors.white))),
                   ])),
                 // Info
                 Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2162,6 +2323,213 @@ class _MainAppState extends State<MainApp> {
     );
   }
 
+  // ═══ PEDIDO RÁPIDO FORM ═══
+  void _showPedidoRapido() {
+    String? _prTipo;
+    final _prOrigen = TextEditingController();
+    final _prDestino = TextEditingController();
+    final _prTel = TextEditingController();
+    final _prNotas = TextEditingController();
+    // Tipo-specific controllers
+    final _prRestaurante = TextEditingController();
+    final _prMedicamento = TextEditingController();
+    final _prSucursal = TextEditingController();
+    final _prDimensiones = TextEditingController();
+    final _prMuebles = TextEditingController();
+    final _prCajas = TextEditingController();
+    final _prPiso = TextEditingController();
+    bool _prReceta = false;
+    bool _prFragil = false;
+
+    final tipos = [
+      {'id': 'comida', 'icon': '🍲', 'nom': 'Delivery Comida', 'desc': 'Restaurantes y comida', 'color': AppTheme.or},
+      {'id': 'farmacia', 'icon': '💊', 'nom': 'Farmacia', 'desc': 'Medicamentos y salud', 'color': AppTheme.gr},
+      {'id': 'mandado', 'icon': '🛒', 'nom': 'Mandado Local', 'desc': 'Compras y encargos', 'color': AppTheme.ac},
+      {'id': 'paqueteria', 'icon': '📦', 'nom': 'Paquetería CDMX-Hidalgo', 'desc': 'Envíos entre ciudades', 'color': AppTheme.pu},
+      {'id': 'mudanza', 'icon': '🚛', 'nom': 'Mini Mudanza', 'desc': 'Muebles y cajas', 'color': AppTheme.yl},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setModalState) {
+        Widget _field(String label, TextEditingController ctrl, {IconData icon = Icons.edit, int lines = 1}) =>
+          Padding(padding: const EdgeInsets.only(bottom: 10), child: TextField(
+            controller: ctrl, maxLines: lines,
+            style: const TextStyle(color: AppTheme.tx, fontSize: 13),
+            decoration: InputDecoration(
+              labelText: label, labelStyle: const TextStyle(color: AppTheme.tm, fontSize: 12),
+              prefixIcon: Icon(icon, size: 18, color: AppTheme.td),
+              filled: false,
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.bd, width: 1)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.ac, width: 1.5)),
+              contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+          ));
+
+        return Container(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.92),
+          decoration: const BoxDecoration(
+            color: AppTheme.sf,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // Handle
+            Container(width: 40, height: 4, margin: const EdgeInsets.only(top: 12, bottom: 8),
+              decoration: BoxDecoration(color: AppTheme.bd, borderRadius: BorderRadius.circular(2))),
+            // Título
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Row(children: [
+              const Icon(Icons.flash_on, size: 20, color: AppTheme.rd),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Pedido Rápido', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.tx))),
+              GestureDetector(onTap: () => Navigator.pop(ctx),
+                child: Container(width: 32, height: 32, decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.close, size: 16, color: AppTheme.tm))),
+            ])),
+            const SizedBox(height: 12),
+            // Contenido scrollable
+            Flexible(child: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), shrinkWrap: true, children: [
+              // ── Paso 1: Seleccionar tipo ──
+              if (_prTipo == null) ...[
+                const Text('¿Qué tipo de pedido?', style: TextStyle(fontSize: 12, color: AppTheme.tm)),
+                const SizedBox(height: 10),
+                ...tipos.map((t) => GestureDetector(
+                  onTap: () => setModalState(() => _prTipo = t['id'] as String),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.transparent, borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: (t['color'] as Color).withOpacity(0.4), width: 1.2)),
+                    child: Row(children: [
+                      Container(width: 44, height: 44,
+                        decoration: BoxDecoration(color: (t['color'] as Color).withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                        child: Center(child: Text(t['icon'] as String, style: const TextStyle(fontSize: 22)))),
+                      const SizedBox(width: 12),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(t['nom'] as String, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: t['color'] as Color)),
+                        Text(t['desc'] as String, style: const TextStyle(fontSize: 10, color: AppTheme.tm)),
+                      ])),
+                      Icon(Icons.arrow_forward_ios, size: 14, color: t['color'] as Color),
+                    ]),
+                  ),
+                )),
+              ],
+              // ── Paso 2: Formulario según tipo ──
+              if (_prTipo != null) ...[
+                // Back to type selection
+                GestureDetector(
+                  onTap: () => setModalState(() => _prTipo = null),
+                  child: Row(children: [
+                    const Icon(Icons.arrow_back_ios, size: 14, color: AppTheme.ac),
+                    Text('${tipos.firstWhere((t) => t['id'] == _prTipo)['icon']} ${tipos.firstWhere((t) => t['id'] == _prTipo)['nom']}',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.ac)),
+                  ]),
+                ),
+                const SizedBox(height: 14),
+                // Campos comunes
+                _field('Teléfono del cliente', _prTel, icon: Icons.phone),
+                _field('Dirección origen', _prOrigen, icon: Icons.location_on),
+                _field('Dirección destino', _prDestino, icon: Icons.flag),
+                // Campos específicos por tipo
+                if (_prTipo == 'comida') ...[
+                  _field('¿De qué restaurante?', _prRestaurante, icon: Icons.restaurant),
+                  _field('¿Qué llevar? (platillos, cantidad)', _prNotas, icon: Icons.fastfood, lines: 2),
+                ],
+                if (_prTipo == 'farmacia') ...[
+                  _field('¿Qué medicamento(s)?', _prMedicamento, icon: Icons.medication, lines: 2),
+                  _field('Sucursal preferida', _prSucursal, icon: Icons.store),
+                  Padding(padding: const EdgeInsets.only(bottom: 10), child: GestureDetector(
+                    onTap: () => setModalState(() => _prReceta = !_prReceta),
+                    child: Container(padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: _prReceta ? AppTheme.gr : AppTheme.bd)),
+                      child: Row(children: [
+                        Icon(_prReceta ? Icons.check_box : Icons.check_box_outline_blank, size: 20,
+                          color: _prReceta ? AppTheme.gr : AppTheme.td),
+                        const SizedBox(width: 8),
+                        const Text('Requiere receta médica', style: TextStyle(fontSize: 12, color: AppTheme.tx)),
+                      ])))),
+                ],
+                if (_prTipo == 'mandado') ...[
+                  _field('¿Qué necesita? (lista de compras)', _prNotas, icon: Icons.shopping_bag, lines: 3),
+                ],
+                if (_prTipo == 'paqueteria') ...[
+                  _field('Descripción del paquete', _prNotas, icon: Icons.inventory_2, lines: 2),
+                  _field('Dimensiones / peso aprox.', _prDimensiones, icon: Icons.straighten),
+                  Padding(padding: const EdgeInsets.only(bottom: 10), child: GestureDetector(
+                    onTap: () => setModalState(() => _prFragil = !_prFragil),
+                    child: Container(padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: _prFragil ? AppTheme.or : AppTheme.bd)),
+                      child: Row(children: [
+                        Icon(_prFragil ? Icons.check_box : Icons.check_box_outline_blank, size: 20,
+                          color: _prFragil ? AppTheme.or : AppTheme.td),
+                        const SizedBox(width: 8),
+                        const Text('Paquete frágil', style: TextStyle(fontSize: 12, color: AppTheme.tx)),
+                      ])))),
+                ],
+                if (_prTipo == 'mudanza') ...[
+                  _field('¿Qué muebles/artículos?', _prMuebles, icon: Icons.weekend, lines: 2),
+                  _field('¿Cuántas cajas aprox.?', _prCajas, icon: Icons.inventory),
+                  _field('¿Piso? (ej: 3er piso sin elevador)', _prPiso, icon: Icons.apartment),
+                  _field('Notas adicionales', _prNotas, icon: Icons.note, lines: 2),
+                ],
+                const SizedBox(height: 8),
+                // Botón enviar
+                GestureDetector(
+                  onTap: () {
+                    if (_prTel.text.isEmpty || _prDestino.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Completa teléfono y destino', style: TextStyle(color: Colors.white)),
+                        backgroundColor: Colors.red));
+                      return;
+                    }
+                    // Crear pedido local
+                    final tipoInfo = tipos.firstWhere((t) => t['id'] == _prTipo);
+                    final folio = 'CGO-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+                    String desc = '';
+                    if (_prTipo == 'comida') desc = '${_prRestaurante.text}: ${_prNotas.text}';
+                    if (_prTipo == 'farmacia') desc = '${_prMedicamento.text}${_prReceta ? ' (c/receta)' : ''}';
+                    if (_prTipo == 'mandado') desc = _prNotas.text;
+                    if (_prTipo == 'paqueteria') desc = '${_prNotas.text} · ${_prDimensiones.text}${_prFragil ? ' ⚠️FRÁGIL' : ''}';
+                    if (_prTipo == 'mudanza') desc = '${_prMuebles.text} · ${_prCajas.text} cajas · Piso: ${_prPiso.text}';
+                    setState(() {
+                      pedidos.insert(0, Pedido(
+                        id: folio, cl: _prTel.text,
+                        orig: _prOrigen.text.isNotEmpty ? _prOrigen.text : tipoInfo['nom'] as String,
+                        dest: _prDestino.text,
+                        est: 'prep', m: 0,
+                        h: '${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+                        prog: 5, city: 'hidalgo',
+                      ));
+                    });
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('${tipoInfo['icon']} Pedido $folio creado · $desc', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                      backgroundColor: AppTheme.gr, duration: const Duration(seconds: 4)));
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [AppTheme.rd, AppTheme.rd.withOpacity(0.8)]),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [BoxShadow(color: AppTheme.rd.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))]),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: const [
+                      Icon(Icons.send, size: 18, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text('Enviar Pedido', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
+                    ]),
+                  ),
+                ),
+              ],
+            ])),
+          ]),
+        );
+      }),
+    );
+  }
+
   // ═══ PEDIDOS ═══
   Widget _pedScreen() {
     final fp = _pedFilter == 'all' ? pedidos : pedidos.where((p) => p.city == _pedFilter).toList();
@@ -2173,25 +2541,87 @@ class _MainAppState extends State<MainApp> {
 
     return RefreshIndicator(onRefresh: _loadApiData, color: AppTheme.ac,
       child: ListView(padding: const EdgeInsets.all(14), children: [
-      _topBar(),
-      // ── Rastrear pedido ──
-      Container(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF00B4FF), width: 1.2)),
-        child: Row(children: [
-          const Icon(Icons.search, color: Color(0xFFFFD600), size: 18),
-          const SizedBox(width: 8),
-          Expanded(child: TextField(
-            onChanged: (v) => _trackFolio = v,
-            style: const TextStyle(color: Color(0xFF00B4FF), fontSize: 12),
-            decoration: const InputDecoration(
-              hintText: 'Rastrear folio CGO-XXXXX...', hintStyle: TextStyle(color: Color(0xFF00B4FF), fontSize: 11),
-              border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 12)),
-          )),
-          GestureDetector(onTap: () => _rastrearPedido(_trackFolio),
-            child: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: AppTheme.ac.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.send, size: 16, color: AppTheme.ac))),
-        ])),
+      _topBar(bottom: GestureDetector(
+        onTap: _showPedidoRapido,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+          decoration: BoxDecoration(
+            color: AppTheme.bg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.rd, width: 1.5),
+            boxShadow: [BoxShadow(color: AppTheme.rd.withOpacity(0.2), blurRadius: 10, spreadRadius: 0)],
+          ),
+          child: Row(children: [
+            Container(width: 32, height: 32, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.yl, width: 1.5)),
+              child: const Icon(Icons.flash_on, size: 18, color: AppTheme.yl)),
+            const SizedBox(width: 10),
+            const Expanded(child: Text('Agregar Pedido Rápido', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.rd))),
+            const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.rd),
+          ]),
+        ),
+      )),
+      // ═══ MAPA REAL - estrella del screen ═══
+      Container(height: 220, margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppTheme.yl, width: 2),
+          boxShadow: [BoxShadow(color: AppTheme.yl.withOpacity(0.25), blurRadius: 16, offset: const Offset(0, 4))],
+        ),
+        child: ClipRRect(borderRadius: BorderRadius.circular(20),
+          child: Stack(children: [
+            // Flutter Map preview embebido
+            FlutterMap(
+              options: MapOptions(
+                initialCenter: _mapCenter, initialZoom: 12,
+                interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
+                onTap: (_, __) => setState(() { _showFullMap = true; _updateMapMarkers(); }),
+                onMapReady: () { if (_markerData.isEmpty) _updateMapMarkers(); },
+              ),
+              children: [
+                TileLayer(urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                  subdomains: const ['a', 'b', 'c', 'd']),
+                MarkerLayer(markers: _buildMapMarkers()),
+              ],
+            ),
+            // Gradient overlay arriba
+            Positioned(top: 0, left: 0, right: 0, height: 60,
+              child: IgnorePointer(child: Container(decoration: BoxDecoration(
+                gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  colors: [AppTheme.bg.withOpacity(0.7), Colors.transparent]))))),
+            // Gradient overlay abajo
+            Positioned(bottom: 0, left: 0, right: 0, height: 70,
+              child: IgnorePointer(child: Container(decoration: BoxDecoration(
+                gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                  colors: [AppTheme.bg.withOpacity(0.8), Colors.transparent]))))),
+            // Top row: titulo + fullscreen
+            Positioned(top: 10, left: 14, right: 14,
+              child: IgnorePointer(child: Row(children: [
+                Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(color: AppTheme.cd.withOpacity(0.85), borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.ac.withOpacity(0.3), width: 0.5)),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.map, size: 14, color: AppTheme.ac),
+                    SizedBox(width: 6),
+                    Text('Mapa de Entregas', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+                  ])),
+                const Spacer(),
+                Container(padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(color: AppTheme.cd.withOpacity(0.85), borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.ac.withOpacity(0.3), width: 0.5)),
+                  child: const Icon(Icons.fullscreen, size: 18, color: AppTheme.ac)),
+              ]))),
+            // Bottom chips: stats
+            Positioned(bottom: 10, left: 14, right: 14,
+              child: IgnorePointer(child: Row(children: [
+                _mapPreviewChip('📍 Tulancingo', '${negHidalgo.length}'),
+                const SizedBox(width: 8),
+                _mapPreviewChip('🏙️ CDMX', '${negCdmx.length}'),
+                const SizedBox(width: 8),
+                _mapPreviewChip('📦 En ruta', '${useApi ? enRuta : pedidos.where((p) => p.est == "ruta").length}'),
+              ]))),
+          ]))),
       // ── Filter pills ──
       Row(children: [for (var f in [['all','Todos'],['hidalgo','Hidalgo'],['cdmx','CDMX']])
         Expanded(child: GestureDetector(onTap: () => setState(() => _pedFilter = f[0]),
@@ -2219,44 +2649,6 @@ class _MainAppState extends State<MainApp> {
         })
       else
         ...fp.map(_pedCard),
-      const SizedBox(height: 16),
-      // ═══ MAPA - tap para pantalla completa ═══
-      GestureDetector(
-        onTap: () => setState(() { _showFullMap = true; _updateMapMarkers(); }),
-        child: Container(height: 180,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1565C0)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-            boxShadow: [BoxShadow(color: AppTheme.ac.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 4))],
-          ),
-          child: Stack(children: [
-            // Grid decoration
-            Positioned.fill(child: ClipRRect(borderRadius: BorderRadius.circular(20), child: CustomPaint(painter: _MapGridPainter()))),
-            // Content
-            Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Container(width: 40, height: 40, decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.map, size: 22, color: Colors.white)),
-                const SizedBox(width: 12),
-                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('🗺️ Mapa de Entregas', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
-                  Text('Toca para ver mapa completo', style: TextStyle(fontSize: 10, color: Colors.white70)),
-                ])),
-                Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.fullscreen, size: 20, color: Colors.white)),
-              ]),
-              const Spacer(),
-              // Mini indicators
-              Row(children: [
-                _mapPreviewChip('📍 Tulancingo', '${negHidalgo.length}'),
-                const SizedBox(width: 8),
-                _mapPreviewChip('🏙️ CDMX', '${negCdmx.length}'),
-                const SizedBox(width: 8),
-                _mapPreviewChip('📦 En ruta', '${useApi ? enRuta : pedidos.where((p) => p.est == "ruta").length}'),
-              ]),
-            ])),
-          ]))),
       const SizedBox(height: 8),
       Row(children: [
         _pedStat('Rutas Activas', useApi ? enRuta : rutas.where((r) => r.est == 'activa').length, AppTheme.ac),
