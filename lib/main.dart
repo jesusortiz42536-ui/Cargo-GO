@@ -7,6 +7,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
+import 'services/mercadopago_service.dart';
+import 'services/places_photo_service.dart';
 
 class AppTheme {
   static const bg = Color(0xFF060B18);
@@ -49,8 +51,8 @@ class Negocio {
   final double r;
   final int ped;
   final Color c;
-  final String? menu;
-  Negocio({required this.id, required this.nom, required this.e, required this.zona, required this.desc, required this.tipo, required this.r, required this.ped, required this.c, this.menu});
+  final String? menu, horario, tel;
+  Negocio({required this.id, required this.nom, required this.e, required this.zona, required this.desc, required this.tipo, required this.r, required this.ped, required this.c, this.menu, this.horario, this.tel});
 }
 
 class Pedido {
@@ -213,26 +215,39 @@ final List<FarmItem> farmacia = [
 
 // ═══ 100 NEGOCIOS ═══
 final List<Negocio> negHidalgo = [
-  Negocio(id:"h01",nom:"Farmacias Madrid",e:"💊",zona:"Centro, Tulancingo",desc:"5 sucursales · 77K+ productos",r:4.8,ped:1240,c:AppTheme.gr,menu:"farmacia",tipo:"farmacia"),
-  Negocio(id:"h02",nom:"Mamá Chela",e:"🍲",zona:"Centro, Tulancingo",desc:"Comida casera hidalguense",r:4.9,ped:890,c:AppTheme.or,menu:"mama",tipo:"comida"),
-  Negocio(id:"h03",nom:"Dulce María",e:"🧁",zona:"La Floresta, Tulancingo",desc:"Postres artesanales mexicanos",r:4.7,ped:650,c:AppTheme.pk,menu:"dulce",tipo:"postres"),
-  Negocio(id:"h04",nom:"Tacos El Güero",e:"🌮",zona:"Centro, Tulancingo",desc:"Tacos al pastor y suadero",r:4.6,ped:1100,c:AppTheme.rd,tipo:"comida"),
-  Negocio(id:"h05",nom:"Carnitas Don Pepe",e:"🥩",zona:"San Antonio, Tulancingo",desc:"Carnitas estilo Michoacán",r:4.5,ped:780,c:const Color(0xFFB45309),tipo:"comida"),
-  Negocio(id:"h06",nom:"Pollos El Rey",e:"🍗",zona:"Las Torres, Tulancingo",desc:"Pollo al carbón y rostizado",r:4.4,ped:920,c:const Color(0xFFEA580C),tipo:"comida"),
-  Negocio(id:"h07",nom:"Café Tulancingo",e:"☕",zona:"Centro, Tulancingo",desc:"Café de altura hidalguense",r:4.6,ped:520,c:const Color(0xFF78350F),tipo:"cafe"),
-  Negocio(id:"h08",nom:"Tortas La Abuela",e:"🥖",zona:"Jaltepec, Tulancingo",desc:"Tortas gigantes y cemitas",r:4.7,ped:670,c:const Color(0xFFCA8A04),tipo:"comida"),
-  Negocio(id:"h09",nom:"Barbacoa Los Reyes",e:"🐑",zona:"Centro, Tulancingo",desc:"Barbacoa borrego jue y dom",r:4.8,ped:950,c:const Color(0xFF92400E),tipo:"comida"),
-  Negocio(id:"h10",nom:"Pastes El Portal",e:"🥟",zona:"Centro, Tulancingo",desc:"Pastes tradicionales 1960",r:4.7,ped:1050,c:const Color(0xFFD97706),tipo:"comida"),
-  Negocio(id:"h11",nom:"Panadería San José",e:"🍞",zona:"La Floresta",desc:"Pan artesanal y de fiesta",r:4.5,ped:420,c:const Color(0xFFA16207),tipo:"panaderia"),
-  Negocio(id:"h12",nom:"Pulquería La Noria",e:"🍺",zona:"Santiago, Tulancingo",desc:"Pulque natural y curados",r:4.3,ped:380,c:const Color(0xFF4D7C0F),tipo:"bebidas"),
-  Negocio(id:"h13",nom:"Abarrotes Doña Lupe",e:"🏪",zona:"Cuautepec",desc:"Abarrotes y productos básicos",r:4.2,ped:620,c:AppTheme.tl,tipo:"abarrotes"),
-  Negocio(id:"h14",nom:"Pizzas Tulancingo",e:"🍕",zona:"Las Torres",desc:"Pizza al horno de leña",r:4.4,ped:540,c:const Color(0xFFDC2626),tipo:"comida"),
-  Negocio(id:"h15",nom:"Jugos y Licuados Mary",e:"🥤",zona:"Mercado",desc:"Jugos naturales y licuados",r:4.5,ped:730,c:const Color(0xFF16A34A),tipo:"bebidas"),
-  Negocio(id:"h16",nom:"Taller Bicis Rápido",e:"🚲",zona:"Centro",desc:"Reparación y refacciones",r:4.1,ped:180,c:const Color(0xFF6366F1),tipo:"servicios"),
-  Negocio(id:"h17",nom:"Flores El Jardín",e:"💐",zona:"La Floresta",desc:"Arreglos florales y ramos",r:4.6,ped:290,c:const Color(0xFFE11D48),tipo:"flores"),
-  Negocio(id:"h18",nom:"Carnicería Hidalgo",e:"🥩",zona:"Mercado",desc:"Carnes selectas y marinados",r:4.4,ped:810,c:const Color(0xFF991B1B),tipo:"carniceria"),
-  Negocio(id:"h19",nom:"Ferretería Central",e:"🔧",zona:"Centro",desc:"Material eléctrico y plomería",r:4.3,ped:350,c:const Color(0xFF525252),tipo:"ferreteria"),
-  Negocio(id:"h20",nom:"Papelería Escolar",e:"📚",zona:"Centro",desc:"Útiles, copias, impresiones",r:4.2,ped:460,c:const Color(0xFF2563EB),tipo:"papeleria"),
+  Negocio(id:"h01",nom:"Farmacias Madrid - Matriz",e:"💊",zona:"Av. Juárez 102, Centro, Tulancingo",desc:"Sucursal principal · 77K+ productos",r:4.8,ped:1240,c:AppTheme.gr,menu:"farmacia",tipo:"farmacia",horario:"7:00–23:00",tel:"7751234567"),
+  Negocio(id:"h01b",nom:"Farmacias Madrid - Suc. Catedral",e:"💊",zona:"21 de Marzo 45, Centro, Tulancingo",desc:"Frente a la Catedral · medicamentos 24hrs",r:4.7,ped:980,c:AppTheme.gr,menu:"farmacia",tipo:"farmacia",horario:"24 horas",tel:"7751234568"),
+  Negocio(id:"h01c",nom:"Farmacias Madrid - Suc. Floresta",e:"💊",zona:"Blvd. La Floresta 210, Tulancingo",desc:"Zona La Floresta · servicio a domicilio",r:4.6,ped:720,c:AppTheme.gr,menu:"farmacia",tipo:"farmacia",horario:"8:00–22:00",tel:"7751234569"),
+  Negocio(id:"h01d",nom:"Farmacias Madrid - Suc. Torres",e:"💊",zona:"Av. Las Torres 88, Tulancingo",desc:"Junto a plaza comercial · laboratorio",r:4.7,ped:860,c:AppTheme.gr,menu:"farmacia",tipo:"farmacia",horario:"8:00–22:00",tel:"7751234570"),
+  Negocio(id:"h02",nom:"Mamá Chela",e:"🍲",zona:"Centro, Tulancingo",desc:"Comida casera hidalguense",r:4.9,ped:890,c:AppTheme.or,menu:"mama",tipo:"comida",horario:"9:00–18:00",tel:"7759876543"),
+  Negocio(id:"h03",nom:"Dulce María",e:"🧁",zona:"La Floresta, Tulancingo",desc:"Postres artesanales mexicanos",r:4.7,ped:650,c:AppTheme.pk,menu:"dulce",tipo:"postres",horario:"10:00–20:00",tel:"7751112233"),
+  Negocio(id:"h04",nom:"Tacos El Güero",e:"🌮",zona:"Centro, Tulancingo",desc:"Tacos al pastor y suadero",r:4.6,ped:1100,c:AppTheme.rd,tipo:"comida",horario:"18:00–02:00",tel:"7754445566"),
+  Negocio(id:"h05",nom:"Carnitas Don Pepe",e:"🥩",zona:"San Antonio, Tulancingo",desc:"Carnitas estilo Michoacán",r:4.5,ped:780,c:const Color(0xFFB45309),tipo:"comida",horario:"8:00–16:00",tel:"7753334455"),
+  Negocio(id:"h06",nom:"Pollos El Rey",e:"🍗",zona:"Las Torres, Tulancingo",desc:"Pollo al carbón y rostizado",r:4.4,ped:920,c:const Color(0xFFEA580C),tipo:"comida",horario:"10:00–21:00",tel:"7756667788"),
+  Negocio(id:"h07",nom:"Café Tulancingo",e:"☕",zona:"Centro, Tulancingo",desc:"Café de altura hidalguense",r:4.6,ped:520,c:const Color(0xFF78350F),tipo:"cafe",horario:"7:00–21:00",tel:"7752223344"),
+  Negocio(id:"h08",nom:"Tortas La Abuela",e:"🥖",zona:"Jaltepec, Tulancingo",desc:"Tortas gigantes y cemitas",r:4.7,ped:670,c:const Color(0xFFCA8A04),tipo:"comida",horario:"9:00–20:00",tel:"7758889900"),
+  Negocio(id:"h09",nom:"Barbacoa Los Reyes",e:"🐑",zona:"Centro, Tulancingo",desc:"Barbacoa borrego jue y dom",r:4.8,ped:950,c:const Color(0xFF92400E),tipo:"comida",horario:"Jue-Dom 7:00–15:00",tel:"7755556677"),
+  Negocio(id:"h10",nom:"Pastes El Portal",e:"🥟",zona:"Centro, Tulancingo",desc:"Pastes tradicionales 1960",r:4.7,ped:1050,c:const Color(0xFFD97706),tipo:"comida",horario:"8:00–20:00",tel:"7751239876"),
+  Negocio(id:"h11",nom:"Panadería San José",e:"🍞",zona:"La Floresta",desc:"Pan artesanal y de fiesta",r:4.5,ped:420,c:const Color(0xFFA16207),tipo:"panaderia",horario:"6:00–21:00",tel:"7754561234"),
+  Negocio(id:"h12",nom:"Pulquería La Noria",e:"🍺",zona:"Santiago, Tulancingo",desc:"Pulque natural y curados",r:4.3,ped:380,c:const Color(0xFF4D7C0F),tipo:"bebidas",horario:"12:00–22:00",tel:"7757891234"),
+  Negocio(id:"h13",nom:"Abarrotes Doña Lupe",e:"🏪",zona:"Cuautepec",desc:"Abarrotes y productos básicos",r:4.2,ped:620,c:AppTheme.tl,tipo:"abarrotes",horario:"7:00–22:00",tel:"7753216549"),
+  Negocio(id:"h14",nom:"Pizzas Tulancingo",e:"🍕",zona:"Las Torres",desc:"Pizza al horno de leña",r:4.4,ped:540,c:const Color(0xFFDC2626),tipo:"comida",horario:"14:00–23:00",tel:"7756543210"),
+  Negocio(id:"h15",nom:"Jugos y Licuados Mary",e:"🥤",zona:"Mercado",desc:"Jugos naturales y licuados",r:4.5,ped:730,c:const Color(0xFF16A34A),tipo:"bebidas",horario:"7:00–18:00",tel:"7759871234"),
+  Negocio(id:"h16",nom:"Taller Bicis Rápido",e:"🚲",zona:"Centro",desc:"Reparación y refacciones",r:4.1,ped:180,c:const Color(0xFF6366F1),tipo:"servicios",horario:"9:00–19:00",tel:"7751472583"),
+  Negocio(id:"h17",nom:"Flores El Jardín",e:"💐",zona:"La Floresta",desc:"Arreglos florales y ramos",r:4.6,ped:290,c:const Color(0xFFE11D48),tipo:"flores",horario:"8:00–20:00",tel:"7752583691"),
+  Negocio(id:"h18",nom:"Carnicería Hidalgo",e:"🥩",zona:"Mercado",desc:"Carnes selectas y marinados",r:4.4,ped:810,c:const Color(0xFF991B1B),tipo:"carniceria",horario:"7:00–17:00",tel:"7753691472"),
+  Negocio(id:"h19",nom:"Ferretería Central",e:"🔧",zona:"Centro",desc:"Material eléctrico y plomería",r:4.3,ped:350,c:const Color(0xFF525252),tipo:"ferreteria",horario:"8:00–19:00",tel:"7754567890"),
+  Negocio(id:"h20",nom:"Papelería Escolar",e:"📚",zona:"Centro",desc:"Útiles, copias, impresiones",r:4.2,ped:460,c:const Color(0xFF2563EB),tipo:"papeleria",horario:"8:00–20:00",tel:"7757890123"),
+  Negocio(id:"h21",nom:"Tortillería La Esperanza",e:"🫓",zona:"Centro, Tulancingo",desc:"Tortillas de maíz y harina recién hechas",r:4.6,ped:1800,c:const Color(0xFFD97706),tipo:"comida",horario:"6:00–14:00",tel:"7751234890"),
+  Negocio(id:"h22",nom:"Pollería Hermanos García",e:"🐔",zona:"Las Torres, Tulancingo",desc:"Pollo fresco, huevo y embutidos",r:4.3,ped:950,c:const Color(0xFFEA580C),tipo:"comida",horario:"7:00–18:00",tel:"7754321098"),
+  Negocio(id:"h23",nom:"Abarrotes El Ahorro",e:"🛒",zona:"Jaltepec, Tulancingo",desc:"Todo para tu despensa a buen precio",r:4.1,ped:720,c:AppTheme.tl,tipo:"super",horario:"7:00–23:00",tel:"7756789012"),
+  Negocio(id:"h24",nom:"Taquería Los Compadres",e:"🌮",zona:"La Floresta, Tulancingo",desc:"Tacos de suadero, tripa y cabeza",r:4.7,ped:1350,c:const Color(0xFFDC2626),tipo:"comida",horario:"19:00–03:00",tel:"7758901234"),
+  Negocio(id:"h25",nom:"Tlapalería Don Manuel",e:"🔩",zona:"Centro, Tulancingo",desc:"Pinturas, herramientas y material",r:4.2,ped:280,c:const Color(0xFF525252),tipo:"ferreteria",horario:"8:00–19:00",tel:"7750123456"),
+  Negocio(id:"h26",nom:"Estética Lupita",e:"💇",zona:"La Floresta, Tulancingo",desc:"Cortes, tintes, peinados y uñas",r:4.5,ped:410,c:const Color(0xFFEC4899),tipo:"servicios",horario:"9:00–20:00",tel:"7752345678"),
+  Negocio(id:"h27",nom:"Veterinaria San Francisco",e:"🐾",zona:"Centro, Tulancingo",desc:"Consultas, vacunas y accesorios",r:4.4,ped:320,c:const Color(0xFF16A34A),tipo:"servicios",horario:"9:00–19:00",tel:"7753456789"),
+  Negocio(id:"h28",nom:"Recaudería Doña Carmen",e:"🥕",zona:"Mercado, Tulancingo",desc:"Frutas, verduras y legumbres frescas",r:4.3,ped:1100,c:const Color(0xFF15803D),tipo:"mercado",horario:"6:00–16:00",tel:"7754567891"),
+  Negocio(id:"h29",nom:"Lavandería Clean Express",e:"👔",zona:"Las Torres, Tulancingo",desc:"Lavado, secado y planchado rápido",r:4.1,ped:190,c:const Color(0xFF0284C7),tipo:"servicios",horario:"8:00–20:00",tel:"7755678901"),
+  Negocio(id:"h30",nom:"Cremería La Vaquita",e:"🧀",zona:"Mercado, Tulancingo",desc:"Quesos, crema y lácteos de rancho",r:4.6,ped:680,c:const Color(0xFFEAB308),tipo:"comida",horario:"7:00–17:00",tel:"7756789013"),
 ];
 
 final List<Negocio> negCdmx = [
@@ -322,7 +337,10 @@ final List<Negocio> negCdmx = [
 // ═══ COORDENADAS REALES DE TODOS LOS NEGOCIOS ═══
 const _negCoords = <String, List<double>>{
   // ── Hidalgo (Tulancingo ~20.08, -98.38) ──
-  'h01': [20.0844, -98.3815], // Farmacias Madrid - Centro
+  'h01': [20.0841, -98.3619], // Farmacias Madrid Matriz - Av. Juárez, Centro
+  'h01b': [20.0833, -98.3601], // Farmacias Madrid Suc. Catedral - 21 de Marzo
+  'h01c': [20.0785, -98.3560], // Farmacias Madrid Suc. Floresta
+  'h01d': [20.0910, -98.3700], // Farmacias Madrid Suc. Torres
   'h02': [20.0838, -98.3808], // Mamá Chela - Centro
   'h03': [20.0780, -98.3730], // Dulce María - La Floresta
   'h04': [20.0850, -98.3825], // Tacos El Güero - Centro
@@ -342,6 +360,16 @@ const _negCoords = <String, List<double>>{
   'h18': [20.0843, -98.3805], // Carnicería Hidalgo - Mercado
   'h19': [20.0847, -98.3822], // Ferretería Central - Centro
   'h20': [20.0836, -98.3812], // Papelería Escolar - Centro
+  'h21': [20.0852, -98.3622], // Tortillería La Esperanza - Centro
+  'h22': [20.0910, -98.3705], // Pollería Hermanos García - Las Torres
+  'h23': [20.0920, -98.3755], // Abarrotes El Ahorro - Jaltepec
+  'h24': [20.0778, -98.3738], // Taquería Los Compadres - La Floresta
+  'h25': [20.0846, -98.3628], // Tlapalería Don Manuel - Centro
+  'h26': [20.0782, -98.3565], // Estética Lupita - La Floresta
+  'h27': [20.0839, -98.3610], // Veterinaria San Francisco - Centro
+  'h28': [20.0848, -98.3605], // Recaudería Doña Carmen - Mercado
+  'h29': [20.0915, -98.3710], // Lavandería Clean Express - Las Torres
+  'h30': [20.0845, -98.3615], // Cremería La Vaquita - Mercado
   // ── CDMX (~19.43, -99.13) ──
   'c01': [19.4407, -99.1567], // El Califa de León - San Rafael
   'c02': [19.3500, -99.1625], // Café El Jarocho - Coyoacán
@@ -1169,6 +1197,74 @@ class _MainAppState extends State<MainApp> {
     ));
   }
 
+  void _showQuickOrder(Negocio n) {
+    final descCtrl = TextEditingController();
+    final priceCtrl = TextEditingController();
+    int? selectedPrice;
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppTheme.sf,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => StatefulBuilder(builder: (ctx, setS) {
+        return Padding(padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Text(n.e, style: const TextStyle(fontSize: 28)),
+              const SizedBox(width: 8),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(n.nom, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.tx)),
+                Text(n.tipo, style: const TextStyle(fontSize: 10, color: AppTheme.tm)),
+              ])),
+              IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close, color: AppTheme.tm)),
+            ]),
+            const SizedBox(height: 14),
+            TextField(controller: descCtrl, style: const TextStyle(color: AppTheme.tx, fontSize: 13),
+              decoration: InputDecoration(hintText: '¿Qué quieres pedir?', hintStyle: const TextStyle(color: AppTheme.td, fontSize: 13),
+                prefixIcon: const Icon(Icons.edit_note, color: AppTheme.ac, size: 20),
+                filled: true, fillColor: AppTheme.cd,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.bd)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.bd)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.ac)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10))),
+            const SizedBox(height: 14),
+            const Text('Precio estimado', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tm)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [50, 100, 200, 500, 0].map((p) {
+              final label = p == 0 ? 'Otro' : '\$$p';
+              final sel = selectedPrice == p;
+              return GestureDetector(onTap: () => setS(() { selectedPrice = p; if (p > 0) priceCtrl.clear(); }),
+                child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(color: sel ? AppTheme.ac.withOpacity(0.15) : AppTheme.cd,
+                    borderRadius: BorderRadius.circular(20), border: Border.all(color: sel ? AppTheme.ac : AppTheme.bd, width: 1.2)),
+                  child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: sel ? AppTheme.ac : AppTheme.tm))));
+            }).toList()),
+            if (selectedPrice == 0) ...[
+              const SizedBox(height: 10),
+              TextField(controller: priceCtrl, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.tx, fontSize: 13),
+                decoration: InputDecoration(hintText: 'Escribe el precio', hintStyle: const TextStyle(color: AppTheme.td, fontSize: 13),
+                  prefixIcon: const Icon(Icons.attach_money, color: AppTheme.gr, size: 20),
+                  filled: true, fillColor: AppTheme.cd,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.bd)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.bd)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.gr)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10))),
+            ],
+            const SizedBox(height: 16),
+            SizedBox(width: double.infinity, height: 44, child: ElevatedButton(
+              onPressed: () {
+                final desc = descCtrl.text.trim();
+                if (desc.isEmpty) return;
+                int? price = selectedPrice;
+                if (price == 0) price = int.tryParse(priceCtrl.text.trim());
+                if (price == null || price <= 0) return;
+                Navigator.pop(ctx);
+                _addToCart(desc, price, n.nom);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gr, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+              child: const Text('Agregar al carrito 🛒', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)))),
+          ]));
+      }));
+  }
+
   void _openCart() {
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppTheme.sf,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -1220,22 +1316,8 @@ class _MainAppState extends State<MainApp> {
                   ])))),
             ])),
           const SizedBox(height: 8),
-          // Payment
-          Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.bd)),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('💳 Pagar con:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.tx)),
-              const SizedBox(height: 6),
-              ...List.generate(pays.length, (i) => GestureDetector(onTap: () => setS(() => setState(() => _payIdx = i)),
-                child: Container(margin: const EdgeInsets.only(bottom: 4), padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(6), border: Border.all(color: _payIdx == i ? AppTheme.gr.withOpacity(0.5) : Colors.transparent),
-                    color: _payIdx == i ? AppTheme.gr.withOpacity(0.06) : Colors.transparent),
-                  child: Row(children: [
-                    Icon(_payIdx == i ? Icons.radio_button_checked : Icons.radio_button_off, size: 14, color: _payIdx == i ? AppTheme.gr : AppTheme.td),
-                    const SizedBox(width: 6),
-                    Text(pays[i].l, style: TextStyle(fontSize: 10, color: _payIdx == i ? AppTheme.gr : AppTheme.tm)),
-                  ])))),
-            ])),
-          const SizedBox(height: 16),
+          // Resumen de pago
+          const SizedBox(height: 12),
           _row('Subtotal', '\$$_cartTotal'),
           _row('Envíos (${groups.keys.length})', '\$$envios'),
           _row('🪐 Saturnos', '+$pts pts', c: AppTheme.tl),
@@ -1244,12 +1326,35 @@ class _MainAppState extends State<MainApp> {
             const Text('Total', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.tx)),
             Text('\$${_cartTotal + envios}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.tx, fontFamily: 'monospace')),
           ]),
+          const SizedBox(height: 6),
+          // Métodos de pago info
+          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: const Color(0xFF00B2E8).withOpacity(0.08), borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF00B2E8).withOpacity(0.3))),
+            child: const Row(children: [
+              Icon(Icons.info_outline, size: 14, color: Color(0xFF00B2E8)),
+              SizedBox(width: 6),
+              Expanded(child: Text('Paga con tarjeta, OXXO, SPEI o saldo MercadoPago', style: TextStyle(fontSize: 9, color: Color(0xFF00B2E8)))),
+            ])),
           const SizedBox(height: 12),
+          // Botón MercadoPago
           SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: () { Navigator.pop(ctx); setState(() => _cart.clear()); _showCheckout(); },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gr, padding: const EdgeInsets.symmetric(vertical: 14),
+            onPressed: () async {
+              final total = (_cartTotal + envios).toDouble();
+              Navigator.pop(ctx);
+              final ok = await MercadoPagoService.pagarCarrito(
+                subtotal: _cartTotal.toDouble(), envio: envios.toDouble(), items: _cart.length);
+              if (ok) { setState(() => _cart.clear()); _showCheckout(); }
+              else { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Error al conectar con MercadoPago', style: TextStyle(color: Colors.white)),
+                backgroundColor: Color(0xFFFF4757))); }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00B2E8), padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: const Text('🚀 Confirmar Pedido', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Colors.white)),
+            child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.payment, size: 18, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Pagar con MercadoPago', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Colors.white)),
+            ]),
           )),
           const SizedBox(height: 8),
           Center(child: TextButton(onPressed: () { setS(() { setState(() => _cart.clear()); }); Navigator.pop(ctx); }, child: Text('Vaciar carrito', style: TextStyle(color: AppTheme.rd, fontSize: 10)))),
@@ -2035,7 +2140,7 @@ class _MainAppState extends State<MainApp> {
 
     return RefreshIndicator(onRefresh: _loadApiData, color: AppTheme.ac,
       child: ListView(padding: const EdgeInsets.all(14), children: [
-      _topBar(),
+      _topBar(bottom: const SizedBox.shrink()),
       // City filter - outlined rounded
       Row(children: [
         _cityBtn('all', '🗺️ Todos ($totalAll)'),
@@ -2061,6 +2166,55 @@ class _MainAppState extends State<MainApp> {
               child: Text(t[1], style: TextStyle(fontSize: 10, color: _negTipo == t[0] ? AppTheme.ac : AppTheme.tm)))),
       ]),
       const SizedBox(height: 8),
+      // Banner suscripción de negocios
+      GestureDetector(
+        onTap: () => showDialog(context: context, builder: (_) => AlertDialog(
+          backgroundColor: AppTheme.sf, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('🏪', style: TextStyle(fontSize: 44)),
+            const SizedBox(height: 10),
+            const Text('Suscripción Marketplace', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.tx)),
+            const SizedBox(height: 6),
+            const Text('Registra tu negocio en Cargo-GO y recibe pedidos de toda la ciudad.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: AppTheme.tm)),
+            const SizedBox(height: 12),
+            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(12)),
+              child: Column(children: const [
+                Text('\$500 MXN/mes', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppTheme.tx)),
+                SizedBox(height: 6),
+                Text('✅ Perfil en el marketplace\n✅ Recibe pedidos ilimitados\n✅ Mapa con tu ubicación\n✅ Pagos con MercadoPago\n✅ Soporte prioritario',
+                  style: TextStyle(fontSize: 11, color: AppTheme.tm, height: 1.6)),
+              ])),
+            const SizedBox(height: 12),
+            SizedBox(width: double.infinity, child: ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                final ok = await MercadoPagoService.pagarSuscripcion(nombreNegocio: 'Mi Negocio');
+                if (!ok && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Error al conectar con MercadoPago'), backgroundColor: Color(0xFFFF4757)));
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00B2E8), padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.payment, size: 18, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Suscribirse · \$500/mes', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Colors.white)),
+              ]))),
+          ]))),
+        child: Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [Color(0xFF00B2E8), Color(0xFF009EE3)]),
+            borderRadius: BorderRadius.circular(16)),
+          child: Row(children: [
+            Container(width: 40, height: 40, decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+              child: const Center(child: Text('🏪', style: TextStyle(fontSize: 22)))),
+            const SizedBox(width: 10),
+            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('¿Tienes un negocio?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white)),
+              Text('Regístrate en el Marketplace · \$500/mes', style: TextStyle(fontSize: 10, color: Colors.white70)),
+            ])),
+            const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
+          ])),
+      ),
       Row(children: [
         Text('${filtered.length + apiFiltered.length} resultados', style: const TextStyle(fontSize: 10, color: AppTheme.td)),
         if (_apiNegocios.isNotEmpty) ...[
@@ -2128,73 +2282,109 @@ class _MainAppState extends State<MainApp> {
           ),
         ),
       ],
-      // Grid - cards con foto y ubicación
-      GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.72),
-        itemCount: filtered.where((n) => n.id != 'c81').length, itemBuilder: (_, i) {
-          final n = filtered.where((n) => n.id != 'c81').toList()[i];
-          return GestureDetector(onTap: () { if (n.menu != null) setState(() => _menuScreen = n.menu); },
-            child: Container(decoration: BoxDecoration(
+      // Grid - responsive cards con mini mapa y botones
+      LayoutBuilder(builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final cols = w > 900 ? 4 : w > 600 ? 3 : 2;
+        final cards = filtered.where((n) => n.id != 'c81').toList();
+        const mapsKey = 'AIzaSyD37YdGfyW3DFpQl6v48mLfGrjBds78iOI';
+        return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.42),
+          itemCount: cards.length, itemBuilder: (_, i) {
+            final n = cards[i];
+            final coords = _negCoords[n.id];
+            final hasCoords = coords != null;
+            final lat = hasCoords ? coords[0] : 0.0;
+            final lng = hasCoords ? coords[1] : 0.0;
+            return Container(decoration: BoxDecoration(
               color: Colors.transparent, borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: n.c.withOpacity(0.25), width: 1.2)),
+              border: Border.all(color: n.c.withOpacity(0.3), width: 1.2)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // Foto de red con fallback a emoji
-                Container(height: 110, decoration: BoxDecoration(
-                  color: n.c.withOpacity(0.15),
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(19), topRight: Radius.circular(19)),
-                  image: DecorationImage(
-                    image: NetworkImage('https://picsum.photos/seed/${n.id}/400/200'),
-                    fit: BoxFit.cover,
-                    onError: (_, __) {})),
-                  child: Stack(children: [
-                    // Gradient overlay para legibilidad
-                    Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.only(topLeft: Radius.circular(19), topRight: Radius.circular(19)),
-                      gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, n.c.withOpacity(0.6)])))),
-                    // Emoji + tipo badge
-                    Positioned(bottom: 4, left: 8, child: Row(children: [
-                      Text(n.e, style: const TextStyle(fontSize: 20)),
-                      const SizedBox(width: 4),
-                      Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(color: AppTheme.bg.withOpacity(0.7), borderRadius: BorderRadius.circular(6)),
-                        child: Text(n.tipo, style: const TextStyle(fontSize: 8, color: AppTheme.tm))),
-                    ])),
-                    // Fav button
-                    Positioned(top: 6, right: 6, child: GestureDetector(onTap: () => setState(() => _favs.contains(n.id) ? _favs.remove(n.id) : _favs.add(n.id)),
-                      child: Container(width: 26, height: 26, decoration: BoxDecoration(color: AppTheme.bg.withOpacity(0.6), shape: BoxShape.circle),
-                        child: Center(child: Text(_favs.contains(n.id) ? '❤️' : '🤍', style: const TextStyle(fontSize: 12)))))),
-                    // Location pin si tiene coordenadas
-                    if (_negCoords.containsKey(n.id))
-                      Positioned(top: 6, left: 6, child: Container(width: 20, height: 20,
-                        decoration: BoxDecoration(color: const Color(0xFF34A853).withOpacity(0.9), shape: BoxShape.circle),
-                        child: const Icon(Icons.location_on, size: 12, color: Colors.white))),
-                  ])),
-                // Info
-                Padding(padding: const EdgeInsets.fromLTRB(10, 8, 10, 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(n.nom, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.tx), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 2),
-                  Text(n.desc, style: const TextStyle(fontSize: 11, color: AppTheme.tm), maxLines: 2, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 4),
+                // Vista satelital real o fallback por categoría
+                ClipRRect(borderRadius: const BorderRadius.only(topLeft: Radius.circular(19), topRight: Radius.circular(19)),
+                  child: SizedBox(height: 110, width: double.infinity,
+                    child: hasCoords
+                      ? Image.network(
+                          PlacesPhotoService.satelliteUrl(lat, lng),
+                          fit: BoxFit.cover,
+                          loadingBuilder: (_, child, progress) => progress == null ? child : _negCardFallback(n),
+                          errorBuilder: (_, __, ___) => _negCardFallback(n))
+                      : _negCardFallback(n))),
+                // Info completa
+                Expanded(child: Padding(padding: const EdgeInsets.fromLTRB(10, 8, 10, 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  // Nombre + rating
                   Row(children: [
-                    const Icon(Icons.location_on, size: 12, color: Color(0xFF34A853)),
-                    const SizedBox(width: 2),
-                    Expanded(child: Text(n.zona, style: const TextStyle(fontSize: 10, color: AppTheme.td), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    Expanded(child: Text(n.nom, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.tx), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(color: AppTheme.or.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                      child: Text('⭐ ${n.r}', style: const TextStyle(fontSize: 9, color: AppTheme.or, fontWeight: FontWeight.w700))),
+                  ]),
+                  const SizedBox(height: 2),
+                  // Tipo + desc
+                  Row(children: [
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(color: n.c.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                      child: Text('${n.e} ${n.tipo}', style: TextStyle(fontSize: 8, color: n.c, fontWeight: FontWeight.w600))),
+                    const SizedBox(width: 4),
+                    Expanded(child: Text(n.desc, style: const TextStyle(fontSize: 9, color: AppTheme.tm), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  ]),
+                  const SizedBox(height: 6),
+                  // Dirección clickeable → Google Maps
+                  GestureDetector(
+                    onTap: hasCoords ? () => launchUrl(Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng'), mode: LaunchMode.externalApplication) : null,
+                    child: Row(children: [
+                      const Icon(Icons.location_on, size: 12, color: Color(0xFF34A853)),
+                      const SizedBox(width: 3),
+                      Expanded(child: Text(n.zona, style: TextStyle(fontSize: 10, color: hasCoords ? const Color(0xFF34A853) : AppTheme.td, decoration: hasCoords ? TextDecoration.underline : null), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    ])),
+                  const SizedBox(height: 3),
+                  // Horario
+                  if (n.horario != null) Row(children: [
+                    const Icon(Icons.access_time, size: 11, color: AppTheme.cy),
+                    const SizedBox(width: 3),
+                    Text(n.horario!, style: const TextStyle(fontSize: 10, color: AppTheme.tm)),
                   ]),
                   const SizedBox(height: 3),
-                  Row(children: [
-                    Text('⭐${n.r}', style: const TextStyle(fontSize: 9, color: AppTheme.or)),
-                    const SizedBox(width: 6),
-                    Text('📦${n.ped}', style: const TextStyle(fontSize: 9, color: AppTheme.tm)),
-                  ]),
-                  if (n.menu != null) ...[
-                    const SizedBox(height: 3),
-                    Text('Ver menú →', style: TextStyle(fontSize: 9, color: n.c, fontWeight: FontWeight.w600)),
-                  ],
-                ])),
-              ])));
-        }),
+                  // Teléfono
+                  if (n.tel != null) GestureDetector(
+                    onTap: () => launchUrl(Uri.parse('tel:${n.tel}')),
+                    child: Row(children: [
+                      const Icon(Icons.phone, size: 11, color: AppTheme.ac),
+                      const SizedBox(width: 3),
+                      Text(n.tel!, style: const TextStyle(fontSize: 10, color: AppTheme.ac, decoration: TextDecoration.underline)),
+                    ])),
+                  const Spacer(),
+                  // Pedidos count
+                  Text('${n.ped} pedidos', style: const TextStyle(fontSize: 9, color: AppTheme.td)),
+                  const SizedBox(height: 6),
+                  // Botones: Cómo llegar + Pedir Ahora
+                  if (hasCoords) Padding(padding: const EdgeInsets.only(bottom: 4), child:
+                    SizedBox(width: double.infinity, height: 30, child: OutlinedButton.icon(
+                      onPressed: () => _openNavigation(lat, lng, n.nom),
+                      icon: const Icon(Icons.directions, size: 14),
+                      label: const Text('Cómo llegar', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF34A853),
+                        side: const BorderSide(color: Color(0xFF34A853), width: 1),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: EdgeInsets.zero)))),
+                  SizedBox(width: double.infinity, height: 32, child: ElevatedButton(
+                    onPressed: () { if (n.menu != null) setState(() => _menuScreen = n.menu); else _showQuickOrder(n); },
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF34A853), foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: EdgeInsets.zero, elevation: 0),
+                    child: const Text('Pedir Ahora', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)))),
+                ]))),
+              ]));
+          });
+      }),
     ]));
   }
+
+  // Fallback visual para tarjeta de negocio (sin foto real)
+  Widget _negCardFallback(Negocio n) => Container(
+    decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+      colors: [n.c.withOpacity(0.3), n.c.withOpacity(0.08)])),
+    child: Center(child: Text(n.e, style: const TextStyle(fontSize: 44))));
 
   Widget _cityBtn(String k, String l) => Expanded(child: GestureDetector(onTap: () => setState(() => _negCity = k),
     child: Container(margin: const EdgeInsets.symmetric(horizontal: 2), padding: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(
@@ -2490,16 +2680,32 @@ class _MainAppState extends State<MainApp> {
                   _field('Notas adicionales', _prNotas, icon: Icons.note, lines: 2),
                 ],
                 const SizedBox(height: 8),
-                // Botón enviar
+                // Precio estimado
+                Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.bd)),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    const Text('Costo estimado:', style: TextStyle(fontSize: 12, color: AppTheme.tm)),
+                    Text(_prTipo == 'mudanza' ? '\$1,500' : _prTipo == 'paqueteria' ? '\$250' : _prTipo == 'comida' ? '\$65' : _prTipo == 'farmacia' ? '\$45' : '\$85',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.tx, fontFamily: 'monospace')),
+                  ])),
+                const SizedBox(height: 6),
+                // Info MercadoPago
+                Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: const Color(0xFF00B2E8).withOpacity(0.08), borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF00B2E8).withOpacity(0.3))),
+                  child: const Row(children: [
+                    Icon(Icons.info_outline, size: 14, color: Color(0xFF00B2E8)),
+                    SizedBox(width: 6),
+                    Expanded(child: Text('Paga con tarjeta, OXXO, SPEI o MercadoPago', style: TextStyle(fontSize: 9, color: Color(0xFF00B2E8)))),
+                  ])),
+                const SizedBox(height: 12),
+                // Botón Pagar con MercadoPago
                 GestureDetector(
-                  onTap: () {
+                  onTap: () async {
                     if (_prTel.text.isEmpty || _prDestino.text.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                         content: Text('Completa teléfono y destino', style: TextStyle(color: Colors.white)),
                         backgroundColor: Colors.red));
                       return;
                     }
-                    // Crear pedido local
                     final tipoInfo = tipos.firstWhere((t) => t['id'] == _prTipo);
                     final folio = 'CGO-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
                     String desc = '';
@@ -2508,6 +2714,8 @@ class _MainAppState extends State<MainApp> {
                     if (_prTipo == 'mandado') desc = _prNotas.text;
                     if (_prTipo == 'paqueteria') desc = '${_prNotas.text} · ${_prDimensiones.text}${_prFragil ? ' ⚠️FRÁGIL' : ''}';
                     if (_prTipo == 'mudanza') desc = '${_prMuebles.text} · ${_prCajas.text} cajas · Piso: ${_prPiso.text}';
+                    final precio = _prTipo == 'mudanza' ? 1500.0 : _prTipo == 'paqueteria' ? 250.0 : _prTipo == 'comida' ? 65.0 : _prTipo == 'farmacia' ? 45.0 : 85.0;
+                    // Crear pedido local
                     setState(() {
                       pedidos.insert(0, Pedido(
                         id: folio, cl: _prTel.text,
@@ -2519,21 +2727,29 @@ class _MainAppState extends State<MainApp> {
                       ));
                     });
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text('${tipoInfo['icon']} Pedido $folio creado · $desc', style: const TextStyle(color: Colors.white, fontSize: 12)),
-                      backgroundColor: AppTheme.gr, duration: const Duration(seconds: 4)));
+                    // Abrir MercadoPago Checkout Pro
+                    final ok = await MercadoPagoService.pagarPedido(folio: folio, tipo: _prTipo ?? 'mandado', total: precio, descripcion: desc);
+                    if (ok) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text('${tipoInfo['icon']} Pedido $folio · Redirigiendo a MercadoPago...', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                        backgroundColor: AppTheme.gr, duration: const Duration(seconds: 4)));
+                    } else {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text('${tipoInfo['icon']} Pedido $folio creado · Pago pendiente', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                        backgroundColor: AppTheme.or, duration: const Duration(seconds: 4)));
+                    }
                   },
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [AppTheme.rd, AppTheme.rd.withOpacity(0.8)]),
+                      gradient: const LinearGradient(colors: [Color(0xFF00B2E8), Color(0xFF009EE3)]),
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: AppTheme.rd.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))]),
+                      boxShadow: [BoxShadow(color: const Color(0xFF00B2E8).withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))]),
                     child: Row(mainAxisAlignment: MainAxisAlignment.center, children: const [
-                      Icon(Icons.send, size: 18, color: Colors.white),
+                      Icon(Icons.payment, size: 18, color: Colors.white),
                       SizedBox(width: 8),
-                      Text('Enviar Pedido', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
+                      Text('Pagar con MercadoPago', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
                     ]),
                   ),
                 ),
