@@ -944,21 +944,21 @@ class _MainAppState extends State<MainApp> {
   // ═══ MAP MARKER COLOR BY TYPE ═══
   Color _markerColor(String tipo) {
     switch (tipo) {
-      case 'farmacia': return AppTheme.gr;
-      case 'comida': return AppTheme.or;
-      case 'cafe': return const Color(0xFF78350F);
-      case 'postres': return AppTheme.pk;
-      case 'bebidas': return AppTheme.yl;
-      case 'super': case 'mercado': return AppTheme.ac;
-      case 'mariscos': return AppTheme.cy;
-      case 'servicios': return AppTheme.pu;
-      case 'panaderia': return const Color(0xFFA16207);
-      case 'carniceria': return AppTheme.rd;
-      case 'flores': return const Color(0xFFE11D48);
-      case 'regalos': return AppTheme.pk;
-      case 'oficina': return AppTheme.pu;
-      case 'entrega': return AppTheme.yl;
-      default: return AppTheme.rd;
+      case 'farmacia': return const Color(0xFF0D6B4F);
+      case 'comida': return const Color(0xFF8B5A00);
+      case 'cafe': return const Color(0xFF5C3D1E);
+      case 'postres': return const Color(0xFF8B3A62);
+      case 'bebidas': return const Color(0xFF7A6B00);
+      case 'super': case 'mercado': return const Color(0xFF1A5096);
+      case 'mariscos': return const Color(0xFF0A6B6B);
+      case 'servicios': return const Color(0xFF4A3580);
+      case 'panaderia': return const Color(0xFF6B4A10);
+      case 'carniceria': return const Color(0xFF8B2030);
+      case 'flores': return const Color(0xFF8B1040);
+      case 'regalos': return const Color(0xFF7A3060);
+      case 'oficina': return const Color(0xFF3A3080);
+      case 'entrega': return const Color(0xFF6B5A00);
+      default: return const Color(0xFF6B3030);
     }
   }
 
@@ -1016,9 +1016,9 @@ class _MainAppState extends State<MainApp> {
           child: Container(
             decoration: BoxDecoration(
               color: color, shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-              boxShadow: [BoxShadow(color: color.withOpacity(0.5), blurRadius: 8)]),
-            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 16))),
+              border: Border.all(color: Colors.white.withOpacity(0.7), width: 1.5),
+              boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 6)]),
+            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 15))),
           )),
       ));
     }
@@ -2568,8 +2568,9 @@ class _MainAppState extends State<MainApp> {
             boxShadow: [BoxShadow(color: AppTheme.rd.withOpacity(0.2), blurRadius: 10, spreadRadius: 0)],
           ),
           child: Row(children: [
-            Container(width: 34, height: 34, decoration: BoxDecoration(color: AppTheme.rd.withOpacity(0.12), borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppTheme.rd.withOpacity(0.4), width: 1)),
+            Container(width: 36, height: 36, decoration: BoxDecoration(color: AppTheme.bg, borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.yl, width: 2),
+              boxShadow: [BoxShadow(color: AppTheme.yl.withOpacity(0.3), blurRadius: 6)]),
               child: const Center(child: Text('⚡', style: TextStyle(fontSize: 20)))),
             const SizedBox(width: 10),
             const Expanded(child: Text('Agregar Pedido Rápido', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.rd))),
