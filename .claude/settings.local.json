@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"adb shell getprop ro.build.version.sdk\")",
+      "Bash(flutter upgrade:*)",
+      "Bash(flutter clean:*)",
+      "Bash(flutter pub get:*)",
+      "Bash(flutter run:*)",
+      "Bash(flutter pub upgrade:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(flutter devices:*)",
+      "Bash(adb shell screencap:*)",
+      "Bash(adb pull:*)",
+      "Bash(adb shell am force-stop:*)",
+      "Bash(adb shell dumpsys:*)",
+      "Bash(findstr:*)",
+      "Bash(adb shell:*)",
+      "Bash(flutter build:*)"
+    ]
+  }
+}
