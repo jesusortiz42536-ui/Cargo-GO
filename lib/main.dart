@@ -684,30 +684,45 @@ class _LoginState extends State<LoginScreen> {
             ]),
             const SizedBox(height: 20),
             // Enviar Codigo - amarillo
-            SizedBox(width: double.infinity, child: ElevatedButton(
+            SizedBox(width: double.infinity, height: 58, child: ElevatedButton(
               onPressed: loading ? null : _sendCode,
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFC107), foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), elevation: 0),
-              child: Text(loading ? 'Enviando...' : 'Enviar Codigo', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                padding: const EdgeInsets.symmetric(vertical: 18), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), elevation: 0),
+              child: Text(loading ? 'Enviando...' : 'Enviar Código', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
             )),
             const SizedBox(height: 20),
-            const Text('o continua con', style: TextStyle(fontSize: 12, color: Color(0xFF506080))),
+            const Text('o continúa con', style: TextStyle(fontSize: 12, color: Color(0xFF506080))),
             const SizedBox(height: 14),
-            // Google - blanco
-            SizedBox(width: double.infinity, child: OutlinedButton.icon(
+            // Google - colores oficiales
+            SizedBox(width: double.infinity, height: 58, child: ElevatedButton(
               onPressed: loading ? null : _signInGoogle,
-              icon: const Text('G', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF4285F4))),
-              label: const Text('Continuar con Google', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-              style: OutlinedButton.styleFrom(foregroundColor: Colors.black87, backgroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), side: BorderSide.none),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black87,
+                padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                elevation: 2, shadowColor: Colors.black26,
+                side: const BorderSide(color: Color(0xFFDADCE0), width: 1)),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                // Logo Google multicolor
+                SizedBox(width: 24, height: 24, child: Stack(alignment: Alignment.center, children: const [
+                  Text('G', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF4285F4),
+                    shadows: [Shadow(offset: Offset(0.5, 0.5), color: Color(0x33000000))])),
+                ])),
+                const SizedBox(width: 10),
+                const Text('Continuar con ', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Color(0xFF3C4043))),
+                const Text('G', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF4285F4))),
+                const Text('o', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFFEA4335))),
+                const Text('o', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFFFBBC05))),
+                const Text('g', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF4285F4))),
+                const Text('l', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF34A853))),
+                const Text('e', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFFEA4335))),
+              ]),
             )),
             const SizedBox(height: 10),
-            // Entrar como invitado - outlined
-            SizedBox(width: double.infinity, child: OutlinedButton(
+            // Entrar como invitado - outlined grande
+            SizedBox(width: double.infinity, height: 58, child: OutlinedButton(
               onPressed: _goMain,
-              style: OutlinedButton.styleFrom(foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), side: const BorderSide(color: Color(0xFF1C2D4A))),
-              child: const Text('Entrar como invitado', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 18),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), side: const BorderSide(color: Color(0xFF1C2D4A), width: 1.5)),
+              child: const Text('Entrar como invitado', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             )),
             const SizedBox(height: 20),
             const Text('Al continuar, aceptas nuestros Términos y Condiciones', style: TextStyle(fontSize: 10, color: Color(0xFF506080))),
