@@ -9,6 +9,9 @@ import 'services/api_service.dart';
 import 'services/auth_service.dart';
 import 'services/mercadopago_service.dart';
 import 'services/places_photo_service.dart';
+import 'services/whatsapp_service.dart';
+import 'services/firestore_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AppTheme {
   static const bg = Color(0xFF060B18);
@@ -794,7 +797,11 @@ class MainApp extends StatefulWidget {
 }
 class _MainAppState extends State<MainApp> {
   int _tab = 0;
-  String? _menuScreen; // mama, dulce, farmacia
+  String? _menuScreen; // mama, dulce, farmacia, compras
+  String? _comprasTienda; // selected store id for Compras en Tienda
+  final _comprasLista = TextEditingController();
+  final _comprasTel = TextEditingController();
+  final _comprasDir = TextEditingController();
   final List<CartItem> _cart = [];
   final Set<String> _favs = {'h01','h02','h03'};
   int _addrIdx = 0, _payIdx = 0;
@@ -813,6 +820,10 @@ class _MainAppState extends State<MainApp> {
   List<Map<String, dynamic>> _apiHistorial = [];
   List<Map<String, dynamic>> _apiEntregas = []; // Repartidores API
   Map<String, dynamic> _apiPedidosStats = {};
+
+  // ═══ FIRESTORE NEGOCIOS ═══
+  List<Map<String, dynamic>> _firestoreNegocios = [];
+  bool _loadingFirestore = false;
 
   // ═══ FLUTTER MAP ═══
   final MapController _mapController = MapController();
@@ -840,6 +851,22 @@ class _MainAppState extends State<MainApp> {
     super.initState();
     _loadCache(); // 8. Cargar cache al iniciar
     _updateMapMarkers(); // Llenar markers desde el inicio
+    _loadFirestoreNegocios(); // Cargar negocios desde Firestore
+  }
+
+  Future<void> _loadFirestoreNegocios() async {
+    setState(() => _loadingFirestore = true);
+    try {
+      final data = await FirestoreService.getNegocios();
+      if (!mounted) return;
+      setState(() { _firestoreNegocios = data; _loadingFirestore = false; });
+      _updateMapMarkers(); // Refresh map with Firestore negocios
+      debugPrint('[CGO] Firestore: ${data.length} negocios cargados');
+    } catch (e) {
+      debugPrint('[CGO] Firestore error: $e');
+      if (!mounted) return;
+      setState(() => _loadingFirestore = false);
+    }
   }
 
   // ═══ 8. CACHE OFFLINE ═══
@@ -1014,7 +1041,7 @@ class _MainAppState extends State<MainApp> {
       }
     }
 
-    // Negocios (todos con coordenadas)
+    // Negocios hardcoded (todos con coordenadas)
     final existingIds = _markerData.map((d) => d['id']).toSet();
     for (final n in [...negHidalgo, ...negCdmx]) {
       final coords = _negCoords[n.id];
@@ -1022,8 +1049,30 @@ class _MainAppState extends State<MainApp> {
       _markerData.add({
         'id': 'neg_${n.id}', 'nom': n.nom, 'dir': n.zona, 'e': n.e,
         'lat': coords[0], 'lng': coords[1], 'tipo': n.tipo, 'r': n.r,
+        'plan': 'gratis',
       });
     }
+
+    // Firestore negocios (con coordenadas) — añadir gratis/basico primero, VIP al final para que se dibujen encima
+    final fsNonVip = <Map<String, dynamic>>[];
+    final fsVip = <Map<String, dynamic>>[];
+    for (final n in _firestoreNegocios) {
+      final lat = (n['lat'] as num?)?.toDouble();
+      final lng = (n['lng'] as num?)?.toDouble();
+      if (lat == null || lng == null || lat == 0.0 || lng == 0.0) continue;
+      final fid = 'fs_${n['id']}';
+      if (existingIds.contains(fid)) continue;
+      final plan = (n['plan'] ?? 'gratis').toString();
+      final entry = {
+        'id': fid, 'nom': n['nombre'] ?? '', 'dir': n['direccion'] ?? n['zona'] ?? '',
+        'e': n['emoji'] ?? '🏪', 'lat': lat, 'lng': lng,
+        'tipo': n['categoria'] ?? '', 'r': n['rating'] ?? 4.5,
+        'plan': plan, 'foto_url': n['foto_url'] ?? '', 'fs_data': n,
+      };
+      if (plan == 'vip') { fsVip.add(entry); } else { fsNonVip.add(entry); }
+    }
+    _markerData.addAll(fsNonVip);
+    _markerData.addAll(fsVip); // VIP last = drawn on top
 
     if (mounted) setState(() {});
   }
@@ -1035,19 +1084,47 @@ class _MainAppState extends State<MainApp> {
       final lat = d['lat'] as double?;
       final lng = d['lng'] as double?;
       if (lat == null || lng == null) continue;
-      final color = _markerColor(d['tipo'] ?? '');
+      final plan = (d['plan'] ?? '').toString();
       final emoji = d['e'] ?? '📍';
+
+      // Plan-based sizing and colors
+      double size; Color pinColor; double fontSize; double borderW; bool showLabel; List<BoxShadow> shadows;
+      switch (plan) {
+        case 'vip':
+          size = 52; pinColor = const Color(0xFFFFD700); fontSize = 22; borderW = 2.5;
+          showLabel = true;
+          shadows = [BoxShadow(color: const Color(0xFFFFD700).withOpacity(0.6), blurRadius: 14, spreadRadius: 2), BoxShadow(color: const Color(0xFFFFD700).withOpacity(0.3), blurRadius: 24, spreadRadius: 4)];
+        case 'premium':
+          size = 40; pinColor = const Color(0xFFFFA502); fontSize = 18; borderW = 2;
+          showLabel = true;
+          shadows = [BoxShadow(color: const Color(0xFFFFA502).withOpacity(0.4), blurRadius: 10)];
+        case 'basico':
+          size = 32; pinColor = const Color(0xFFFF4757); fontSize = 15; borderW = 1.5;
+          showLabel = false;
+          shadows = [BoxShadow(color: const Color(0xFFFF4757).withOpacity(0.3), blurRadius: 6)];
+        default: // gratis or unset
+          size = 24; pinColor = const Color(0xFF506080); fontSize = 12; borderW = 1;
+          showLabel = false;
+          shadows = [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)];
+      }
+
+      final markerH = showLabel ? size + 16 : size;
       markers.add(Marker(
-        point: LatLng(lat, lng), width: 36, height: 36,
+        point: LatLng(lat, lng), width: size, height: markerH,
         child: GestureDetector(
           onTap: () => setState(() => _selectedMapPlace = d),
-          child: Container(
-            decoration: BoxDecoration(
-              color: color, shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withOpacity(0.7), width: 1.5),
-              boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 6)]),
-            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 15))),
-          )),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: size, height: size,
+              decoration: BoxDecoration(
+                color: pinColor, shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withOpacity(0.8), width: borderW),
+                boxShadow: shadows),
+              child: Center(child: Text(emoji, style: TextStyle(fontSize: fontSize)))),
+            if (showLabel)
+              Container(margin: const EdgeInsets.only(top: 2), padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(4)),
+                child: Text(d['nom'] ?? '', style: const TextStyle(fontSize: 7, color: Colors.white, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          ])),
       ));
     }
     // Mi ubicación
@@ -1096,8 +1173,11 @@ class _MainAppState extends State<MainApp> {
 
   // ═══ OPEN NAVIGATION ═══
   Future<void> _openNavigation(double lat, double lng, String label) async {
-    final uri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
-    final webUri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng');
+    final mode = _navModeCar ? 'd' : '2w';
+    final travelmode = _navModeCar ? 'driving' : 'two-wheeler';
+    final avoid = _avoidTolls ? '&avoid=tolls' : '';
+    final uri = Uri.parse('google.navigation:q=$lat,$lng&mode=$mode');
+    final webUri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=$travelmode$avoid');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else if (await canLaunchUrl(webUri)) {
@@ -1138,25 +1218,91 @@ class _MainAppState extends State<MainApp> {
       ]),
       const SizedBox(height: 12),
       // Bottom widget o buscador neón por default
-      bottom ?? Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 14),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF00B4FF), width: 1.2),
-          boxShadow: [BoxShadow(color: const Color(0xFF00B4FF).withOpacity(0.15), blurRadius: 8, spreadRadius: 0)],
+      bottom ?? GestureDetector(
+        onTap: _showGlobalSearch,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 14),
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF00B4FF), width: 1.2),
+            boxShadow: [BoxShadow(color: const Color(0xFF00B4FF).withOpacity(0.15), blurRadius: 8, spreadRadius: 0)],
+          ),
+          child: Row(children: [
+            const Icon(Icons.search, size: 20, color: Color(0xFFFFD600)),
+            const SizedBox(width: 10),
+            const Expanded(child: Text('Buscar...', style: TextStyle(fontSize: 14, color: Color(0xFF00B4FF)))),
+            Container(width: 32, height: 32, decoration: BoxDecoration(color: const Color(0xFF00B4FF).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.tune, size: 16, color: Color(0xFF00B4FF))),
+          ]),
         ),
-        child: Row(children: [
-          const Icon(Icons.search, size: 20, color: Color(0xFFFFD600)),
-          const SizedBox(width: 10),
-          const Expanded(child: Text('Buscar...', style: TextStyle(fontSize: 14, color: Color(0xFF00B4FF)))),
-          Container(width: 32, height: 32, decoration: BoxDecoration(color: const Color(0xFF00B4FF).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-            child: const Icon(Icons.tune, size: 16, color: Color(0xFF00B4FF))),
-        ]),
       ),
     ]),
   );
+
+  void _showGlobalSearch() {
+    final ctrl = TextEditingController();
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppTheme.sf,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => StatefulBuilder(builder: (ctx, setS) {
+        final q = ctrl.text.toLowerCase();
+        final allNegs = [...negHidalgo, ...negCdmx];
+        final negResults = q.length >= 2 ? allNegs.where((n) => n.nom.toLowerCase().contains(q) || n.tipo.toLowerCase().contains(q) || n.zona.toLowerCase().contains(q)).take(8).toList() : <Negocio>[];
+        final farmResults = q.length >= 2 ? farmacia.where((f) => f.n.toLowerCase().contains(q) || f.lab.toLowerCase().contains(q)).take(6).toList() : <FarmItem>[];
+        final pedResults = q.length >= 2 ? pedidos.where((p) => p.id.toLowerCase().contains(q) || p.cl.toLowerCase().contains(q)).take(4).toList() : <Pedido>[];
+        return Padding(padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: ctrl, autofocus: true,
+              onChanged: (_) => setS(() {}),
+              style: const TextStyle(color: AppTheme.tx, fontSize: 14),
+              decoration: InputDecoration(hintText: 'Buscar negocios, medicamentos, pedidos...', hintStyle: const TextStyle(color: AppTheme.td, fontSize: 13),
+                prefixIcon: const Icon(Icons.search, color: AppTheme.ac),
+                filled: true, fillColor: AppTheme.cd,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12))),
+            if (q.length >= 2) ...[
+              const SizedBox(height: 12),
+              SizedBox(height: MediaQuery.of(ctx).size.height * 0.5, child: ListView(children: [
+                if (negResults.isNotEmpty) ...[
+                  const Text('🏪 Negocios', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.ac)),
+                  const SizedBox(height: 4),
+                  ...negResults.map((n) => ListTile(dense: true, contentPadding: EdgeInsets.zero,
+                    leading: Text(n.e, style: const TextStyle(fontSize: 20)),
+                    title: Text(n.nom, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.tx)),
+                    subtitle: Text('${n.tipo} · ${n.zona}', style: const TextStyle(fontSize: 9, color: AppTheme.tm)),
+                    onTap: () { Navigator.pop(ctx); setState(() { _tab = 1; _negSearch = n.nom; }); })),
+                  const Divider(color: AppTheme.bd, height: 16),
+                ],
+                if (farmResults.isNotEmpty) ...[
+                  const Text('💊 Farmacia', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.gr)),
+                  const SizedBox(height: 4),
+                  ...farmResults.map((f) => ListTile(dense: true, contentPadding: EdgeInsets.zero,
+                    title: Text(f.n, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.tx)),
+                    subtitle: Text('${f.lab} · \$${f.oferta}', style: const TextStyle(fontSize: 9, color: AppTheme.tm)),
+                    trailing: ElevatedButton(onPressed: () { Navigator.pop(ctx); _addToCart(f.n, f.lista, 'Farmacias Madrid', oferta: f.oferta); },
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gr.withOpacity(0.15), foregroundColor: AppTheme.gr,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), minimumSize: Size.zero,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)), elevation: 0),
+                      child: const Text('+Agregar', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600))),
+                    onTap: () { Navigator.pop(ctx); _addToCart(f.n, f.lista, 'Farmacias Madrid', oferta: f.oferta); })),
+                  const Divider(color: AppTheme.bd, height: 16),
+                ],
+                if (pedResults.isNotEmpty) ...[
+                  const Text('📦 Pedidos', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.or)),
+                  const SizedBox(height: 4),
+                  ...pedResults.map((p) => ListTile(dense: true, contentPadding: EdgeInsets.zero,
+                    title: Text(p.id, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.tx)),
+                    subtitle: Text('${p.cl} · ${p.orig} → ${p.dest}', style: const TextStyle(fontSize: 9, color: AppTheme.tm)),
+                    onTap: () { Navigator.pop(ctx); _rastrearPedido(p.id); })),
+                ],
+                if (negResults.isEmpty && farmResults.isEmpty && pedResults.isEmpty)
+                  const Padding(padding: EdgeInsets.all(20), child: Text('Sin resultados', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.td))),
+              ])),
+            ],
+          ]));
+      }));
+  }
 
   void _showNotifs() {
     showModalBottomSheet(context: context, backgroundColor: AppTheme.sf,
@@ -1257,6 +1403,118 @@ class _MainAppState extends State<MainApp> {
                 if (price == null || price <= 0) return;
                 Navigator.pop(ctx);
                 _addToCart(desc, price, n.nom);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gr, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+              child: const Text('Agregar al carrito 🛒', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)))),
+          ]));
+      }));
+  }
+
+  Widget _fsFallback(String emoji, Color c) {
+    return Container(color: c.withOpacity(0.10),
+      child: Center(child: Text(emoji, style: const TextStyle(fontSize: 40))));
+  }
+
+  void _showPhotoPickerDialog(String negocioId, String negocioName) {
+    showModalBottomSheet(context: context, backgroundColor: AppTheme.sf,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => Padding(padding: const EdgeInsets.all(20),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Foto de $negocioName', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+          const SizedBox(height: 16),
+          ListTile(leading: const Icon(Icons.camera_alt, color: AppTheme.ac), title: const Text('Cámara', style: TextStyle(color: AppTheme.tx)),
+            onTap: () { Navigator.pop(context); _pickAndUploadPhoto(negocioId, ImageSource.camera); }),
+          ListTile(leading: const Icon(Icons.photo_library, color: AppTheme.gr), title: const Text('Galería', style: TextStyle(color: AppTheme.tx)),
+            onTap: () { Navigator.pop(context); _pickAndUploadPhoto(negocioId, ImageSource.gallery); }),
+        ])));
+  }
+
+  Future<void> _pickAndUploadPhoto(String negocioId, ImageSource source) async {
+    try {
+      final picked = await ImagePicker().pickImage(source: source, maxWidth: 1200, imageQuality: 80);
+      if (picked == null) return;
+      if (!mounted) return;
+      showDialog(context: context, barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator(color: AppTheme.ac)));
+      final bytes = await picked.readAsBytes();
+      await FirestoreService.uploadNegocioPhoto(negocioId, bytes);
+      if (!mounted) return;
+      Navigator.pop(context); // close loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto actualizada'), backgroundColor: AppTheme.gr));
+      _loadFirestoreNegocios(); // refresh list
+    } catch (e) {
+      if (!mounted) return;
+      if (Navigator.canPop(context)) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.rd));
+    }
+  }
+
+  void _showQuickOrderFs(Map<String, dynamic> n) {
+    final descCtrl = TextEditingController();
+    final priceCtrl = TextEditingController();
+    int? selectedPrice;
+    final nombre = (n['nombre'] ?? 'Negocio').toString();
+    final emoji = (n['emoji'] ?? '🏪').toString();
+    final cat = (n['categoria'] ?? '').toString();
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppTheme.sf,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => StatefulBuilder(builder: (ctx, setS) {
+        return Padding(padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Text(emoji, style: const TextStyle(fontSize: 28)),
+              const SizedBox(width: 8),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(nombre, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.tx)),
+                Text(cat, style: const TextStyle(fontSize: 10, color: AppTheme.tm)),
+              ])),
+              IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close, color: AppTheme.tm)),
+            ]),
+            const SizedBox(height: 14),
+            TextField(controller: descCtrl, style: const TextStyle(color: AppTheme.tx, fontSize: 13),
+              decoration: InputDecoration(hintText: '¿Qué quieres pedir?', hintStyle: const TextStyle(color: AppTheme.td, fontSize: 13),
+                prefixIcon: const Icon(Icons.edit_note, color: AppTheme.ac, size: 20),
+                filled: true, fillColor: AppTheme.cd,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.bd)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.bd)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.ac)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10))),
+            const SizedBox(height: 14),
+            const Text('Precio estimado', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tm)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [50, 100, 200, 500, 0].map((p) {
+              final label = p == 0 ? 'Otro' : '\$$p';
+              final sel = selectedPrice == p;
+              return GestureDetector(onTap: () => setS(() { selectedPrice = p; if (p > 0) priceCtrl.clear(); }),
+                child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(color: sel ? AppTheme.ac.withOpacity(0.15) : AppTheme.cd,
+                    borderRadius: BorderRadius.circular(20), border: Border.all(color: sel ? AppTheme.ac : AppTheme.bd, width: 1.2)),
+                  child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: sel ? AppTheme.ac : AppTheme.tm))));
+            }).toList()),
+            if (selectedPrice == 0) ...[
+              const SizedBox(height: 10),
+              TextField(controller: priceCtrl, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.tx, fontSize: 13),
+                decoration: InputDecoration(hintText: 'Escribe el precio', hintStyle: const TextStyle(color: AppTheme.td, fontSize: 13),
+                  prefixIcon: const Icon(Icons.attach_money, color: AppTheme.gr, size: 20),
+                  filled: true, fillColor: AppTheme.cd,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.bd)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.bd)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.gr)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10))),
+            ],
+            const SizedBox(height: 16),
+            SizedBox(width: double.infinity, height: 44, child: ElevatedButton(
+              onPressed: () {
+                final desc = descCtrl.text.trim();
+                if (desc.isEmpty) return;
+                int? price = selectedPrice;
+                if (price == 0) price = int.tryParse(priceCtrl.text.trim());
+                if (price == null || price <= 0) return;
+                Navigator.pop(ctx);
+                _addToCart(desc, price, nombre);
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gr, foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
@@ -1423,8 +1681,9 @@ class _MainAppState extends State<MainApp> {
       bottomNavigationBar: _menuScreen != null ? null : _buildNav(),
       floatingActionButton: _cartQty > 0 ? FloatingActionButton.extended(
         onPressed: _openCart, backgroundColor: AppTheme.gr,
+        heroTag: 'mainCart',
         icon: const Icon(Icons.shopping_cart, color: Colors.white, size: 18),
-        label: Text('$_cartQty · \$$_cartTotal', style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
+        label: Text('🛒 $_cartQty · \$$_cartTotal', style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
       ) : null,
     );
   }
@@ -1505,6 +1764,8 @@ class _MainAppState extends State<MainApp> {
     final Color color;
     if (_menuScreen == 'mama') { menu = menuMama; title = '🍲 Mamá Chela'; from = 'Mamá Chela'; color = AppTheme.or; }
     else if (_menuScreen == 'dulce') { menu = menuDulce; title = '🧁 Dulce María'; from = 'Dulce María'; color = AppTheme.pk; }
+    else if (_menuScreen == 'compras') { return _comprasScreen(); }
+    else if (_menuScreen != null && _menuScreen!.startsWith('vip_')) { return _vipScreen(_menuScreen!.substring(4)); }
     else { return _farmScreen(); }
     return _menuView(title, menu, color, from);
   }
@@ -1563,7 +1824,24 @@ class _MainAppState extends State<MainApp> {
                   decoration: const InputDecoration(
                     hintText: 'Buscar ubicación...', hintStyle: TextStyle(color: AppTheme.tm, fontSize: 13),
                     border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 10)),
-                  onSubmitted: (v) {},
+                  onSubmitted: (v) {
+                    if (v.trim().isEmpty) return;
+                    final q = v.toLowerCase();
+                    final match = _markerData.where((d) => (d['nom'] ?? '').toString().toLowerCase().contains(q) || (d['dir'] ?? '').toString().toLowerCase().contains(q)).toList();
+                    if (match.isNotEmpty) {
+                      final d = match.first;
+                      final lat = d['lat'] as double?;
+                      final lng = d['lng'] as double?;
+                      if (lat != null && lng != null) {
+                        _mapController.move(LatLng(lat, lng), 15);
+                        setState(() => _selectedMapPlace = d);
+                      }
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('No encontrado', style: TextStyle(color: Colors.white)),
+                        backgroundColor: AppTheme.rd, duration: Duration(seconds: 2)));
+                    }
+                  },
                 )),
                 // Mic icon
                 Container(width: 32, height: 32, decoration: BoxDecoration(
@@ -1800,19 +2078,28 @@ class _MainAppState extends State<MainApp> {
           const SizedBox(width: 8),
           // SHARE
           GestureDetector(
-            onTap: () {},
+            onTap: () {
+              final url = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+              launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+            },
             child: Container(width: 44, height: 44, decoration: BoxDecoration(
               color: AppTheme.bg, borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppTheme.bd)),
               child: const Icon(Icons.share, size: 18, color: AppTheme.tm))),
           const SizedBox(width: 8),
           // BOOKMARK
-          GestureDetector(
-            onTap: () {},
-            child: Container(width: 44, height: 44, decoration: BoxDecoration(
-              color: AppTheme.bg, borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.bd)),
-              child: const Icon(Icons.bookmark_border, size: 18, color: AppTheme.tm))),
+          Builder(builder: (ctx) {
+            final placeId = place['id'] as String? ?? '';
+            final isFav = _favs.contains(placeId);
+            return GestureDetector(
+              onTap: () {
+                setState(() { if (isFav) _favs.remove(placeId); else _favs.add(placeId); });
+              },
+              child: Container(width: 44, height: 44, decoration: BoxDecoration(
+                color: isFav ? AppTheme.yl.withOpacity(0.15) : AppTheme.bg, borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isFav ? AppTheme.yl : AppTheme.bd)),
+                child: Icon(isFav ? Icons.bookmark : Icons.bookmark_border, size: 18, color: isFav ? AppTheme.yl : AppTheme.tm)));
+          }),
         ]),
       ]),
     );
@@ -1861,7 +2148,7 @@ class _MainAppState extends State<MainApp> {
       Row(children: [
         _dashCard('📦', 'Pedidos\nCDMX - Hidalgo', sEntregas, Icons.arrow_outward, const Color(0xFF0D47A1), null, tabIdx: 2),
         const SizedBox(width: 10),
-        _dashCard('🛒', 'Mandados\nLocal', sMandados, Icons.arrow_outward, AppTheme.cd, null, tabIdx: 1),
+        _dashCard('🛒', 'Mandados\nLocal', sMandados, Icons.arrow_outward, AppTheme.cd, 'compras'),
       ]),
       const SizedBox(height: 10),
       Row(children: [
@@ -1896,8 +2183,8 @@ class _MainAppState extends State<MainApp> {
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(children: [
-            Container(width: 48, height: 48, decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-              child: const Center(child: Text('💊', style: TextStyle(fontSize: 24)))),
+            ClipRRect(borderRadius: BorderRadius.circular(12),
+              child: Image.asset('assets/images/farmacia_madrid_logo.png', width: 48, height: 48, fit: BoxFit.cover)),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('Farmacias Madrid', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
@@ -2123,8 +2410,25 @@ class _MainAppState extends State<MainApp> {
 
   // ═══ NEGOCIOS ═══
   Widget _negScreen() {
+    final useFirestore = _firestoreNegocios.isNotEmpty;
+    // Firestore negocios filtrados
+    final fsAll = useFirestore
+        ? (_negCity == 'all' ? _firestoreNegocios
+           : _firestoreNegocios.where((n) => _negCity == 'hidalgo' ? n['ciudad'] == 'tulancingo' : n['ciudad'] == 'cdmx').toList())
+        : <Map<String, dynamic>>[];
+    final fsFiltered = fsAll.where((n) {
+      final nom = (n['nombre'] ?? '').toString().toLowerCase();
+      final desc = (n['desc'] ?? '').toString().toLowerCase();
+      final mq = _negSearch.isEmpty || nom.contains(_negSearch.toLowerCase()) || desc.contains(_negSearch.toLowerCase());
+      final mt = _negTipo == 'all' || n['categoria'] == _negTipo;
+      return mq && mt;
+    }).toList();
+    final fsTulancingo = useFirestore ? _firestoreNegocios.where((n) => n['ciudad'] == 'tulancingo').length : negHidalgo.length;
+    final fsCdmx = useFirestore ? _firestoreNegocios.where((n) => n['ciudad'] == 'cdmx').length : negCdmx.length;
+
+    // Fallback: hardcoded negocios
     final all = _negCity == 'all' ? [...negHidalgo, ...negCdmx] : _negCity == 'hidalgo' ? negHidalgo : negCdmx;
-    final filtered = all.where((n) {
+    final filtered = useFirestore ? <Negocio>[] : all.where((n) {
       final mq = _negSearch.isEmpty || n.nom.toLowerCase().contains(_negSearch.toLowerCase()) || n.desc.toLowerCase().contains(_negSearch.toLowerCase());
       final mt = _negTipo == 'all' || n.tipo == _negTipo;
       return mq && mt;
@@ -2134,18 +2438,18 @@ class _MainAppState extends State<MainApp> {
       final mq = _negSearch.isEmpty || (n['nombre'] ?? '').toString().toLowerCase().contains(_negSearch.toLowerCase());
       return mq;
     }).toList();
-    final totalLocal = negHidalgo.length + negCdmx.length;
+    final totalLocal = useFirestore ? _firestoreNegocios.length : negHidalgo.length + negCdmx.length;
     final totalApi = _apiNegocios.length;
-    final totalAll = totalLocal + totalApi;
+    final totalAll = useFirestore ? totalLocal : totalLocal + totalApi;
 
-    return RefreshIndicator(onRefresh: _loadApiData, color: AppTheme.ac,
+    return RefreshIndicator(onRefresh: () async { await _loadApiData(); await _loadFirestoreNegocios(); }, color: AppTheme.ac,
       child: ListView(padding: const EdgeInsets.all(14), children: [
       _topBar(bottom: const SizedBox.shrink()),
       // City filter - outlined rounded
       Row(children: [
         _cityBtn('all', '🗺️ Todos ($totalAll)'),
-        _cityBtn('hidalgo', '🏔️ Hidalgo (${negHidalgo.length})'),
-        _cityBtn('cdmx', '🏙️ CDMX (${negCdmx.length})'),
+        _cityBtn('hidalgo', '🏔️ Hidalgo ($fsTulancingo)'),
+        _cityBtn('cdmx', '🏙️ CDMX ($fsCdmx)'),
       ]),
       const SizedBox(height: 10),
       // Search - neon style
@@ -2216,8 +2520,13 @@ class _MainAppState extends State<MainApp> {
           ])),
       ),
       Row(children: [
-        Text('${filtered.length + apiFiltered.length} resultados', style: const TextStyle(fontSize: 10, color: AppTheme.td)),
-        if (_apiNegocios.isNotEmpty) ...[
+        Text('${useFirestore ? fsFiltered.length : filtered.length + apiFiltered.length} resultados', style: const TextStyle(fontSize: 10, color: AppTheme.td)),
+        if (useFirestore) ...[
+          const Text(' · ', style: TextStyle(fontSize: 10, color: AppTheme.td)),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+            child: const Text('🔥 Firestore', style: TextStyle(fontSize: 8, color: AppTheme.gr))),
+        ] else if (_apiNegocios.isNotEmpty) ...[
           const Text(' · ', style: TextStyle(fontSize: 10, color: AppTheme.td)),
           Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(color: AppTheme.gr.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
@@ -2256,9 +2565,194 @@ class _MainAppState extends State<MainApp> {
         const Text('🏪 Negocios Locales', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
         const SizedBox(height: 6),
       ],
-      // Costco special card si está en lista
+      // Loading indicator
+      if (_loadingFirestore) ...[
+        const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: AppTheme.ac, strokeWidth: 2))),
+      ],
+      // ── Firestore Grid (cuando hay datos) ──
+      if (useFirestore) ...[
+        // Costco special card from Firestore
+        if (fsFiltered.any((n) => n['id'] == 'c81')) ...[
+          Builder(builder: (_) {
+            final costco = fsFiltered.firstWhere((n) => n['id'] == 'c81');
+            return GestureDetector(onTap: () => _showQuickOrderFs(costco),
+              child: Container(margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFF005DAA), Color(0xFF0073CF)]),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [BoxShadow(color: const Color(0xFF005DAA).withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))]),
+                child: Row(children: [
+                  Container(width: 56, height: 56, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                    child: Center(child: Text(costco['emoji'] ?? '🛒', style: const TextStyle(fontSize: 30)))),
+                  const SizedBox(width: 14),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(costco['nombre'] ?? 'Costco', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+                    const SizedBox(height: 2),
+                    Text(costco['desc'] ?? '', style: const TextStyle(fontSize: 11, color: Colors.white70)),
+                    const SizedBox(height: 4),
+                    Text('📍 ${costco['direccion'] ?? costco['zona'] ?? ''}', style: const TextStyle(fontSize: 10, color: Colors.white54)),
+                    Text('⭐ ${costco['rating'] ?? 4.7} · ${costco['pedidos'] ?? 0}+ pedidos', style: const TextStyle(fontSize: 10, color: Colors.white54)),
+                  ])),
+                  const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
+                ])));
+          }),
+        ],
+        LayoutBuilder(builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final cols = w > 900 ? 4 : w > 600 ? 3 : 2;
+          final cards = fsFiltered.where((n) => n['id'] != 'c81').toList();
+          // Sort: VIP first, then premium, basico, gratis
+          const planOrder = {'vip': 0, 'premium': 1, 'basico': 2, 'gratis': 3};
+          cards.sort((a, b) => (planOrder[a['plan'] ?? 'gratis'] ?? 3).compareTo(planOrder[b['plan'] ?? 'gratis'] ?? 3));
+          return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.42),
+            itemCount: cards.length, itemBuilder: (_, i) {
+              final n = cards[i];
+              final lat = (n['lat'] as num?)?.toDouble() ?? 0.0;
+              final lng = (n['lng'] as num?)?.toDouble() ?? 0.0;
+              final hasCoords = lat != 0.0 && lng != 0.0;
+              final fotoUrl = (n['foto_url'] ?? '').toString();
+              final hasFoto = fotoUrl.isNotEmpty;
+              final emoji = (n['emoji'] ?? '🏪').toString();
+              final colorHex = (n['color_hex'] ?? '#FFA502').toString();
+              final c = Color(int.parse('FF${colorHex.replaceAll('#', '')}', radix: 16));
+              final nombre = (n['nombre'] ?? '').toString();
+              final desc = (n['desc'] ?? '').toString();
+              final rating = n['rating'] ?? 4.5;
+              final cat = (n['categoria'] ?? '').toString();
+              final zona = (n['direccion'] ?? n['zona'] ?? '').toString();
+              final horario = (n['horario'] ?? '').toString();
+              final tel = (n['telefono'] ?? '').toString();
+              final pedidos = n['pedidos'] ?? 0;
+              final plan = (n['plan'] ?? 'gratis').toString();
+              // Plan-based card styling
+              final Color borderColor; final double borderWidth; final String? badge;
+              final List<BoxShadow> cardShadows;
+              switch (plan) {
+                case 'vip':
+                  borderColor = const Color(0xFFFFD700); borderWidth = 2.0; badge = 'VIP';
+                  cardShadows = [BoxShadow(color: const Color(0xFFFFD700).withOpacity(0.2), blurRadius: 12, spreadRadius: 1)];
+                case 'premium':
+                  borderColor = const Color(0xFFFFA502); borderWidth = 1.5; badge = 'PREMIUM';
+                  cardShadows = [BoxShadow(color: const Color(0xFFFFA502).withOpacity(0.15), blurRadius: 8)];
+                case 'basico':
+                  borderColor = c; borderWidth = 1.2; badge = null;
+                  cardShadows = [];
+                default:
+                  borderColor = const Color(0xFF506080); borderWidth = 0.8; badge = null;
+                  cardShadows = [];
+              }
+              final previewItems = (plan == 'vip' && n['productos_preview'] is List) ? (n['productos_preview'] as List).take(3).toList() : [];
+              return GestureDetector(
+                onTap: plan == 'vip' ? () => setState(() => _menuScreen = 'vip_${n['id']}') : null,
+                child: Container(decoration: BoxDecoration(
+                color: Colors.transparent, borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: borderColor.withOpacity(plan == 'gratis' ? 0.2 : 0.5), width: borderWidth),
+                boxShadow: cardShadows),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  // Foto + badge + edit button
+                  Stack(children: [
+                    ClipRRect(borderRadius: const BorderRadius.only(topLeft: Radius.circular(19), topRight: Radius.circular(19)),
+                      child: SizedBox(height: 110, width: double.infinity,
+                        child: hasFoto
+                          ? Image.network(fotoUrl, fit: BoxFit.cover,
+                              loadingBuilder: (_, child, progress) => progress == null ? child : _fsFallback(emoji, c),
+                              errorBuilder: (_, __, ___) => _fsFallback(emoji, c))
+                          : _fsFallback(emoji, c))),
+                    Positioned(top: 4, right: 4, child: GestureDetector(
+                      onTap: () => _showPhotoPickerDialog(n['id'].toString(), nombre),
+                      child: Container(padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                        child: const Icon(Icons.camera_alt, size: 16, color: Colors.white)))),
+                    if (badge != null) Positioned(top: 6, left: 6, child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        gradient: plan == 'vip'
+                          ? const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFFA000)])
+                          : const LinearGradient(colors: [Color(0xFFFFA502), Color(0xFFFF8C00)]),
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [BoxShadow(color: borderColor.withOpacity(0.4), blurRadius: 6)]),
+                      child: Text(badge, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1)))),
+                  ]),
+                  // Info
+                  Expanded(child: Padding(padding: const EdgeInsets.fromLTRB(10, 8, 10, 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Expanded(child: Text(nombre, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.tx), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(color: AppTheme.or.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                        child: Text('⭐ $rating', style: const TextStyle(fontSize: 9, color: AppTheme.or, fontWeight: FontWeight.w700))),
+                    ]),
+                    const SizedBox(height: 2),
+                    Row(children: [
+                      Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(color: c.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                        child: Text('$emoji $cat', style: TextStyle(fontSize: 8, color: c, fontWeight: FontWeight.w600))),
+                      const SizedBox(width: 4),
+                      Expanded(child: Text(desc, style: const TextStyle(fontSize: 9, color: AppTheme.tm), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    ]),
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: hasCoords ? () => launchUrl(Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng'), mode: LaunchMode.externalApplication) : null,
+                      child: Row(children: [
+                        const Icon(Icons.location_on, size: 12, color: Color(0xFF34A853)),
+                        const SizedBox(width: 3),
+                        Expanded(child: Text(zona, style: TextStyle(fontSize: 10, color: hasCoords ? const Color(0xFF34A853) : AppTheme.td, decoration: hasCoords ? TextDecoration.underline : null), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      ])),
+                    const SizedBox(height: 3),
+                    if (horario.isNotEmpty) Row(children: [
+                      const Icon(Icons.access_time, size: 11, color: AppTheme.cy),
+                      const SizedBox(width: 3),
+                      Text(horario, style: const TextStyle(fontSize: 10, color: AppTheme.tm)),
+                    ]),
+                    const SizedBox(height: 3),
+                    if (tel.isNotEmpty) GestureDetector(
+                      onTap: () => launchUrl(Uri.parse('tel:$tel')),
+                      child: Row(children: [
+                        const Icon(Icons.phone, size: 11, color: AppTheme.ac),
+                        const SizedBox(width: 3),
+                        Text(tel, style: const TextStyle(fontSize: 10, color: AppTheme.ac, decoration: TextDecoration.underline)),
+                      ])),
+                    // VIP preview items
+                    if (previewItems.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      const Divider(color: AppTheme.bd, height: 1),
+                      const SizedBox(height: 4),
+                      for (final item in previewItems)
+                        Padding(padding: const EdgeInsets.only(bottom: 3), child: Row(children: [
+                          Text((item['foto_url'] ?? '📦').toString().isNotEmpty && (item['foto_url'] ?? '').toString().startsWith('http') ? '📦' : '📦', style: const TextStyle(fontSize: 10)),
+                          const SizedBox(width: 4),
+                          Expanded(child: Text((item['nombre'] ?? '').toString(), style: const TextStyle(fontSize: 9, color: AppTheme.tx), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          Text('\$${item['precio'] ?? 0}', style: const TextStyle(fontSize: 9, color: AppTheme.gr, fontWeight: FontWeight.w700)),
+                        ])),
+                    ],
+                    const Spacer(),
+                    Text('$pedidos pedidos', style: TextStyle(fontSize: 9, color: plan == 'gratis' ? AppTheme.td.withOpacity(0.5) : AppTheme.td)),
+                    const SizedBox(height: 6),
+                    if (hasCoords) Padding(padding: const EdgeInsets.only(bottom: 4), child:
+                      SizedBox(width: double.infinity, height: 30, child: OutlinedButton.icon(
+                        onPressed: () => _openNavigation(lat, lng, nombre),
+                        icon: const Icon(Icons.directions, size: 14),
+                        label: const Text('Cómo llegar', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF34A853),
+                          side: const BorderSide(color: Color(0xFF34A853), width: 1),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: EdgeInsets.zero)))),
+                    SizedBox(width: double.infinity, height: 32, child: ElevatedButton(
+                      onPressed: plan == 'vip' ? () => setState(() => _menuScreen = 'vip_${n['id']}') : () => _showQuickOrderFs(n),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: plan == 'vip' ? const Color(0xFFFFD700) : const Color(0xFF34A853),
+                        foregroundColor: plan == 'vip' ? Colors.black : Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: EdgeInsets.zero, elevation: 0),
+                      child: Text(plan == 'vip' ? 'Ver Tienda' : 'Pedir Ahora', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)))),
+                  ]))),
+                ])));
+            });
+        }),
+      ] else ...[
+      // ── Fallback: Costco + hardcoded grid ──
       if (filtered.any((n) => n.id == 'c81')) ...[
-        GestureDetector(onTap: () {},
+        GestureDetector(onTap: () { final costco = filtered.firstWhere((n) => n.id == 'c81'); _showQuickOrder(costco); },
           child: Container(margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: const LinearGradient(colors: [Color(0xFF005DAA), Color(0xFF0073CF)]),
@@ -2282,12 +2776,10 @@ class _MainAppState extends State<MainApp> {
           ),
         ),
       ],
-      // Grid - responsive cards con mini mapa y botones
       LayoutBuilder(builder: (context, constraints) {
         final w = constraints.maxWidth;
         final cols = w > 900 ? 4 : w > 600 ? 3 : 2;
         final cards = filtered.where((n) => n.id != 'c81').toList();
-        const mapsKey = 'AIzaSyD37YdGfyW3DFpQl6v48mLfGrjBds78iOI';
         return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.42),
           itemCount: cards.length, itemBuilder: (_, i) {
@@ -2300,7 +2792,6 @@ class _MainAppState extends State<MainApp> {
               color: Colors.transparent, borderRadius: BorderRadius.circular(20),
               border: Border.all(color: n.c.withOpacity(0.3), width: 1.2)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // Vista satelital real o fallback por categoría
                 ClipRRect(borderRadius: const BorderRadius.only(topLeft: Radius.circular(19), topRight: Radius.circular(19)),
                   child: SizedBox(height: 110, width: double.infinity,
                     child: hasCoords
@@ -2310,9 +2801,7 @@ class _MainAppState extends State<MainApp> {
                           loadingBuilder: (_, child, progress) => progress == null ? child : _negCardFallback(n),
                           errorBuilder: (_, __, ___) => _negCardFallback(n))
                       : _negCardFallback(n))),
-                // Info completa
                 Expanded(child: Padding(padding: const EdgeInsets.fromLTRB(10, 8, 10, 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  // Nombre + rating
                   Row(children: [
                     Expanded(child: Text(n.nom, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.tx), maxLines: 1, overflow: TextOverflow.ellipsis)),
                     Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -2320,7 +2809,6 @@ class _MainAppState extends State<MainApp> {
                       child: Text('⭐ ${n.r}', style: const TextStyle(fontSize: 9, color: AppTheme.or, fontWeight: FontWeight.w700))),
                   ]),
                   const SizedBox(height: 2),
-                  // Tipo + desc
                   Row(children: [
                     Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                       decoration: BoxDecoration(color: n.c.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
@@ -2329,7 +2817,6 @@ class _MainAppState extends State<MainApp> {
                     Expanded(child: Text(n.desc, style: const TextStyle(fontSize: 9, color: AppTheme.tm), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ]),
                   const SizedBox(height: 6),
-                  // Dirección clickeable → Google Maps
                   GestureDetector(
                     onTap: hasCoords ? () => launchUrl(Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng'), mode: LaunchMode.externalApplication) : null,
                     child: Row(children: [
@@ -2338,14 +2825,12 @@ class _MainAppState extends State<MainApp> {
                       Expanded(child: Text(n.zona, style: TextStyle(fontSize: 10, color: hasCoords ? const Color(0xFF34A853) : AppTheme.td, decoration: hasCoords ? TextDecoration.underline : null), maxLines: 1, overflow: TextOverflow.ellipsis)),
                     ])),
                   const SizedBox(height: 3),
-                  // Horario
                   if (n.horario != null) Row(children: [
                     const Icon(Icons.access_time, size: 11, color: AppTheme.cy),
                     const SizedBox(width: 3),
                     Text(n.horario!, style: const TextStyle(fontSize: 10, color: AppTheme.tm)),
                   ]),
                   const SizedBox(height: 3),
-                  // Teléfono
                   if (n.tel != null) GestureDetector(
                     onTap: () => launchUrl(Uri.parse('tel:${n.tel}')),
                     child: Row(children: [
@@ -2354,10 +2839,8 @@ class _MainAppState extends State<MainApp> {
                       Text(n.tel!, style: const TextStyle(fontSize: 10, color: AppTheme.ac, decoration: TextDecoration.underline)),
                     ])),
                   const Spacer(),
-                  // Pedidos count
                   Text('${n.ped} pedidos', style: const TextStyle(fontSize: 9, color: AppTheme.td)),
                   const SizedBox(height: 6),
-                  // Botones: Cómo llegar + Pedir Ahora
                   if (hasCoords) Padding(padding: const EdgeInsets.only(bottom: 4), child:
                     SizedBox(width: double.infinity, height: 30, child: OutlinedButton.icon(
                       onPressed: () => _openNavigation(lat, lng, n.nom),
@@ -2377,6 +2860,7 @@ class _MainAppState extends State<MainApp> {
               ]));
           });
       }),
+      ],
     ]));
   }
 
@@ -2420,9 +2904,363 @@ class _MainAppState extends State<MainApp> {
             ]),
           ]))).toList())).toList()),
       floatingActionButton: _cartQty > 0 ? FloatingActionButton.extended(onPressed: _openCart, backgroundColor: AppTheme.gr,
+        heroTag: 'menuCart',
         icon: const Icon(Icons.shopping_cart, color: Colors.white, size: 18),
-        label: Text('$_cartQty · \$$_cartTotal', style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white))) : null,
+        label: Text('🛒 $_cartQty · \$$_cartTotal', style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white))) : null,
     ));
+  }
+
+  // ═══ COMPRAS EN TIENDA ═══
+  static const _tiendas = [
+    {'id': 'costco', 'nom': 'Costco', 'icon': '🏪', 'url': 'https://www.costco.com.mx', 'color': 0xFF005DAA},
+    {'id': 'walmart', 'nom': 'Walmart', 'icon': '🛒', 'url': 'https://www.walmart.com.mx', 'color': 0xFF0071CE},
+    {'id': 'sams', 'nom': "Sam's Club", 'icon': '🏬', 'url': 'https://www.sams.com.mx', 'color': 0xFF0060A9},
+    {'id': 'soriana', 'nom': 'Soriana', 'icon': '🛍️', 'url': 'https://www.soriana.com', 'color': 0xFFE31837},
+    {'id': 'chedraui', 'nom': 'Chedraui', 'icon': '🏪', 'url': 'https://www.chedraui.com.mx', 'color': 0xFF00843D},
+    {'id': 'aurrera', 'nom': 'Bodega Aurrera', 'icon': '💛', 'url': 'https://www.bodegaaurrera.com.mx', 'color': 0xFFFFD700},
+    {'id': 'lacomer', 'nom': 'La Comer', 'icon': '🛒', 'url': 'https://www.lacomer.com.mx', 'color': 0xFFD32F2F},
+    {'id': 'homedepot', 'nom': 'Home Depot', 'icon': '🔨', 'url': 'https://www.homedepot.com.mx', 'color': 0xFFF96302},
+    {'id': 'liverpool', 'nom': 'Liverpool', 'icon': '🎀', 'url': 'https://www.liverpool.com.mx', 'color': 0xFFE91E8C},
+    {'id': 'farmagdl', 'nom': 'Farmacias Guadalajara', 'icon': '💊', 'url': 'https://www.farmaciasguadalajara.com', 'color': 0xFF00A651},
+  ];
+
+  // ═══ VIP DETAIL SCREEN ═══
+  Widget _vipScreen(String negocioId) {
+    final n = _firestoreNegocios.firstWhere((x) => x['id'] == negocioId, orElse: () => <String, dynamic>{});
+    if (n.isEmpty) {
+      return Scaffold(backgroundColor: AppTheme.bg,
+        appBar: AppBar(backgroundColor: AppTheme.sf, leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() => _menuScreen = null)),
+          title: const Text('Negocio no encontrado')),
+        body: const Center(child: Text('Este negocio no está disponible', style: TextStyle(color: AppTheme.tm))));
+    }
+    final nombre = (n['nombre'] ?? '').toString();
+    final emoji = (n['emoji'] ?? '🏪').toString();
+    final desc = (n['desc'] ?? '').toString();
+    final rating = (n['rating'] ?? 4.5);
+    final cat = (n['categoria'] ?? '').toString();
+    final zona = (n['direccion'] ?? n['zona'] ?? '').toString();
+    final horario = (n['horario'] ?? '').toString();
+    final tel = (n['telefono'] ?? '').toString();
+    final colorHex = (n['color_hex'] ?? '#FFD700').toString();
+    final c = Color(int.parse('FF${colorHex.replaceAll('#', '')}', radix: 16));
+    final fotoUrl = (n['foto_url'] ?? '').toString();
+    final bannerUrl = (n['banner_url'] ?? fotoUrl).toString();
+    final galeria = n['galeria'] is List ? (n['galeria'] as List).cast<String>() : <String>[];
+    final productosPreview = n['productos_preview'] is List ? (n['productos_preview'] as List) : [];
+    final lat = (n['lat'] as num?)?.toDouble() ?? 0.0;
+    final lng = (n['lng'] as num?)?.toDouble() ?? 0.0;
+    final hasCoords = lat != 0.0 && lng != 0.0;
+
+    return Scaffold(backgroundColor: AppTheme.bg,
+      body: Stack(children: [
+        CustomScrollView(slivers: [
+          // ── Collapsing AppBar with banner ──
+          SliverAppBar(expandedHeight: 200, pinned: true, backgroundColor: AppTheme.sf,
+            leading: IconButton(icon: Container(padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+              child: const Icon(Icons.arrow_back, size: 20, color: Colors.white)),
+              onPressed: () => setState(() => _menuScreen = null)),
+            flexibleSpace: FlexibleSpaceBar(
+              title: Text(nombre, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, shadows: [Shadow(color: Colors.black, blurRadius: 8)])),
+              background: Stack(fit: StackFit.expand, children: [
+                bannerUrl.isNotEmpty
+                  ? Image.network(bannerUrl, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(color: c.withOpacity(0.3), child: Center(child: Text(emoji, style: const TextStyle(fontSize: 60)))))
+                  : Container(color: c.withOpacity(0.3), child: Center(child: Text(emoji, style: const TextStyle(fontSize: 60)))),
+                const DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.black87]))),
+              ]),
+            ),
+            actions: [
+              Container(margin: const EdgeInsets.only(right: 12), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFFA000)]),
+                  borderRadius: BorderRadius.circular(12)),
+                child: const Text('VIP', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1))),
+            ]),
+
+          SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // ── Rating + Category ──
+            Row(children: [
+              Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: c.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                child: Text('$emoji $cat', style: TextStyle(fontSize: 11, color: c, fontWeight: FontWeight.w600))),
+              const SizedBox(width: 8),
+              Row(children: List.generate(5, (i) => Icon(
+                i < rating.round() ? Icons.star : Icons.star_border, size: 16,
+                color: const Color(0xFFFFD700)))),
+              const SizedBox(width: 4),
+              Text('$rating', style: const TextStyle(fontSize: 12, color: AppTheme.or, fontWeight: FontWeight.w700)),
+            ]),
+            const SizedBox(height: 10),
+
+            // ── Description ──
+            if (desc.isNotEmpty) ...[
+              Text(desc, style: const TextStyle(fontSize: 13, color: AppTheme.tm, height: 1.4)),
+              const SizedBox(height: 14),
+            ],
+
+            // ── Info Row ──
+            Container(padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.2))),
+              child: Column(children: [
+                if (horario.isNotEmpty) Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(children: [
+                  const Icon(Icons.access_time, size: 16, color: AppTheme.cy),
+                  const SizedBox(width: 8),
+                  Text(horario, style: const TextStyle(fontSize: 12, color: AppTheme.tx)),
+                ])),
+                if (tel.isNotEmpty) Padding(padding: const EdgeInsets.only(bottom: 8), child: GestureDetector(
+                  onTap: () => launchUrl(Uri.parse('tel:$tel')),
+                  child: Row(children: [
+                    const Icon(Icons.phone, size: 16, color: AppTheme.ac),
+                    const SizedBox(width: 8),
+                    Text(tel, style: const TextStyle(fontSize: 12, color: AppTheme.ac, decoration: TextDecoration.underline)),
+                  ]))),
+                if (zona.isNotEmpty) GestureDetector(
+                  onTap: hasCoords ? () => launchUrl(Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng'), mode: LaunchMode.externalApplication) : null,
+                  child: Row(children: [
+                    const Icon(Icons.location_on, size: 16, color: Color(0xFF34A853)),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(zona, style: TextStyle(fontSize: 12, color: hasCoords ? const Color(0xFF34A853) : AppTheme.tx,
+                      decoration: hasCoords ? TextDecoration.underline : null))),
+                  ])),
+              ])),
+            const SizedBox(height: 18),
+
+            // ── Galería ──
+            if (galeria.isNotEmpty) ...[
+              const Text('Galería', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.tx)),
+              const SizedBox(height: 8),
+              SizedBox(height: 120, child: ListView.separated(scrollDirection: Axis.horizontal,
+                itemCount: galeria.length, separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (_, i) => ClipRRect(borderRadius: BorderRadius.circular(12),
+                  child: Image.network(galeria[i], width: 160, height: 120, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(width: 160, height: 120, color: AppTheme.cd,
+                      child: const Center(child: Icon(Icons.image_not_supported, color: AppTheme.td))))))),
+              const SizedBox(height: 18),
+            ],
+
+            // ── Productos / Menú ──
+            if (productosPreview.isNotEmpty) ...[
+              const Text('Menú / Productos', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.tx)),
+              const SizedBox(height: 10),
+              ...productosPreview.map((item) {
+                final itemName = (item['nombre'] ?? '').toString();
+                final itemPrice = item['precio'] ?? 0;
+                final itemFoto = (item['foto_url'] ?? '').toString();
+                return Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.bd)),
+                  child: Row(children: [
+                    if (itemFoto.isNotEmpty)
+                      ClipRRect(borderRadius: BorderRadius.circular(8),
+                        child: Image.network(itemFoto, width: 50, height: 50, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(width: 50, height: 50, color: AppTheme.sf,
+                            child: const Center(child: Text('📦', style: TextStyle(fontSize: 20))))))
+                    else
+                      Container(width: 50, height: 50, decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                        child: const Center(child: Text('📦', style: TextStyle(fontSize: 20)))),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(itemName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.tx))),
+                    Text('\$$itemPrice', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.gr)),
+                  ]));
+              }),
+            ] else ...[
+              // Placeholder when no products configured
+              Container(padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(color: AppTheme.cd, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppTheme.bd)),
+                child: Column(children: [
+                  Text(emoji, style: const TextStyle(fontSize: 40)),
+                  const SizedBox(height: 8),
+                  Text(nombre, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+                  const SizedBox(height: 4),
+                  const Text('Próximamente: menú y productos disponibles', style: TextStyle(fontSize: 11, color: AppTheme.tm)),
+                ])),
+            ],
+            const SizedBox(height: 80), // space for sticky button
+          ]))),
+        ]),
+
+        // ── Sticky bottom button ──
+        Positioned(left: 16, right: 16, bottom: 16, child:
+          SizedBox(height: 50, child: ElevatedButton.icon(
+            onPressed: () => _showQuickOrderFs(n),
+            icon: const Icon(Icons.shopping_bag, size: 20),
+            label: const Text('Pedir Ahora', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFD700), foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 8,
+              shadowColor: const Color(0xFFFFD700).withOpacity(0.4))))),
+      ]));
+  }
+
+  bool _comprasEnviando = false;
+
+  Widget _comprasScreen() {
+    return Scaffold(backgroundColor: AppTheme.bg,
+      appBar: AppBar(backgroundColor: AppTheme.sf,
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() { _menuScreen = null; _comprasTienda = null; })),
+        title: const Text('🛒 Compras en Tienda', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700))),
+      body: ListView(padding: const EdgeInsets.all(14), children: [
+        // ── Instrucciones ──
+        Container(padding: const EdgeInsets.all(12), margin: const EdgeInsets.only(bottom: 14),
+          decoration: BoxDecoration(color: AppTheme.ac.withOpacity(0.08), borderRadius: BorderRadius.circular(14), border: Border.all(color: AppTheme.ac.withOpacity(0.2))),
+          child: const Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.info_outline, size: 18, color: AppTheme.ac),
+            SizedBox(width: 8),
+            Expanded(child: Text('Elige una tienda, ve sus productos y precios, y escribe tu lista de compras. Nosotros compramos y te lo llevamos.',
+              style: TextStyle(fontSize: 11, color: AppTheme.ac))),
+          ])),
+        // ── Grid de tiendas ──
+        const Text('Elige tu tienda', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+        const SizedBox(height: 10),
+        GridView.count(
+          crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 1.6,
+          children: _tiendas.map((t) {
+            final sel = _comprasTienda == t['id'];
+            final c = Color(t['color'] as int);
+            return GestureDetector(
+              onTap: () => setState(() => _comprasTienda = t['id'] as String),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: sel ? c.withOpacity(0.15) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: sel ? c : AppTheme.bd, width: sel ? 1.5 : 1)),
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text(t['icon'] as String, style: const TextStyle(fontSize: 24)),
+                  const SizedBox(height: 4),
+                  Text(t['nom'] as String, textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: sel ? c : AppTheme.tx)),
+                ]),
+              ),
+            );
+          }).toList(),
+        ),
+        // ── Tienda seleccionada ──
+        if (_comprasTienda != null) ...[
+          const SizedBox(height: 16),
+          Builder(builder: (ctx) {
+            final t = _tiendas.firstWhere((t) => t['id'] == _comprasTienda);
+            final c = Color(t['color'] as int);
+            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Botón abrir tienda
+              GestureDetector(
+                onTap: () => launchUrl(Uri.parse(t['url'] as String), mode: LaunchMode.externalApplication),
+                child: Container(
+                  width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(14)),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.open_in_new, size: 18, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text('Abrir ${t['nom']}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text('Ve los productos y precios, luego regresa aquí y escribe tu lista.', style: TextStyle(fontSize: 9, color: AppTheme.tm)),
+              const SizedBox(height: 14),
+              // ── Formulario de pedido ──
+              const Text('Tu lista de compras', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _comprasLista, maxLines: 5,
+                style: const TextStyle(color: AppTheme.tx, fontSize: 12),
+                decoration: InputDecoration(
+                  hintText: 'Ej:\n- 2 litros de leche\n- 1 kg de manzanas\n- Detergente Ariel 3kg',
+                  hintStyle: const TextStyle(color: AppTheme.td, fontSize: 11),
+                  prefixIcon: const Padding(padding: EdgeInsets.only(bottom: 60), child: Icon(Icons.shopping_bag, size: 18, color: AppTheme.td)),
+                  filled: false,
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.bd)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: c, width: 1.5)),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12))),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _comprasTel,
+                style: const TextStyle(color: AppTheme.tx, fontSize: 12),
+                decoration: InputDecoration(
+                  labelText: 'Tu teléfono', labelStyle: const TextStyle(color: AppTheme.tm, fontSize: 11),
+                  prefixIcon: const Icon(Icons.phone, size: 18, color: AppTheme.td),
+                  filled: false,
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.bd)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: c, width: 1.5)),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12))),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _comprasDir,
+                style: const TextStyle(color: AppTheme.tx, fontSize: 12),
+                decoration: InputDecoration(
+                  labelText: 'Dirección de entrega', labelStyle: const TextStyle(color: AppTheme.tm, fontSize: 11),
+                  prefixIcon: const Icon(Icons.location_on, size: 18, color: Color(0xFF34A853)),
+                  filled: false,
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.bd)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: c, width: 1.5)),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12))),
+              const SizedBox(height: 14),
+              // Info de cobro
+              Container(padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: AppTheme.yl.withOpacity(0.08), borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.yl.withOpacity(0.2))),
+                child: const Row(children: [
+                  Icon(Icons.payments, size: 16, color: AppTheme.yl),
+                  SizedBox(width: 8),
+                  Expanded(child: Text('Se cobra: costo de productos + envío', style: TextStyle(fontSize: 10, color: AppTheme.yl))),
+                ])),
+              const SizedBox(height: 14),
+              // Botón enviar
+              GestureDetector(
+                onTap: _comprasEnviando ? null : () => _enviarCompra(t),
+                child: Container(
+                  width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [c, c.withOpacity(0.7)]),
+                    borderRadius: BorderRadius.circular(14)),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    if (_comprasEnviando) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    else const Icon(Icons.send, size: 18, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text(_comprasEnviando ? 'Enviando...' : 'Enviar pedido por WhatsApp', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ]);
+          }),
+        ],
+      ]),
+    );
+  }
+
+  void _enviarCompra(Map<String, dynamic> tienda) async {
+    if (_comprasLista.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Escribe tu lista de compras'), backgroundColor: AppTheme.rd));
+      return;
+    }
+    if (_comprasTel.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Agrega tu teléfono'), backgroundColor: AppTheme.rd));
+      return;
+    }
+    if (_comprasDir.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Agrega tu dirección de entrega'), backgroundColor: AppTheme.rd));
+      return;
+    }
+    setState(() => _comprasEnviando = true);
+    final msg = '🛒 *COMPRA EN TIENDA*\n\n'
+      '🏪 Tienda: ${tienda['nom']}\n'
+      '📋 Lista:\n${_comprasLista.text.trim()}\n\n'
+      '📱 Tel: ${_comprasTel.text.trim()}\n'
+      '📍 Entregar en: ${_comprasDir.text.trim()}\n\n'
+      'Enviado desde Cargo-GO';
+    final url = 'https://wa.me/527753200224?text=${Uri.encodeComponent(msg)}';
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Pedido enviado a ${tienda['nom']}'), backgroundColor: AppTheme.gr));
+      _comprasLista.clear();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.rd));
+    }
+    setState(() => _comprasEnviando = false);
   }
 
   // ═══ FARMACIA ═══
@@ -2475,6 +3313,12 @@ class _MainAppState extends State<MainApp> {
                 Text('${p['laboratorio'] ?? ''} · Stock: ${p['stock'] ?? 0}', style: const TextStyle(fontSize: 8, color: AppTheme.tm)),
               ])),
               Text('\$${p['precio'] ?? 0}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.gr, fontFamily: 'monospace')),
+              const SizedBox(width: 8),
+              ElevatedButton(onPressed: () => _addToCart(p['nombre'] ?? '', (p['precio'] as num?)?.toInt() ?? 0, 'Farmacias Madrid'),
+                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gr.withOpacity(0.15), foregroundColor: AppTheme.gr,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), minimumSize: Size.zero,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)), elevation: 0),
+                child: const Text('+Agregar', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600))),
             ]))),
           const Divider(color: AppTheme.bd, height: 20),
         ],
@@ -2523,8 +3367,9 @@ class _MainAppState extends State<MainApp> {
         }),
       ]),
       floatingActionButton: _cartQty > 0 ? FloatingActionButton.extended(onPressed: _openCart, backgroundColor: AppTheme.gr,
+        heroTag: 'farmCart',
         icon: const Icon(Icons.shopping_cart, color: Colors.white, size: 18),
-        label: Text('$_cartQty · \$$_cartTotal', style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white))) : null,
+        label: Text('🛒 $_cartQty · \$$_cartTotal', style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white))) : null,
     );
   }
 
@@ -2727,6 +3572,18 @@ class _MainAppState extends State<MainApp> {
                       ));
                     });
                     Navigator.pop(ctx);
+                    // Enviar al API si está online
+                    if (_online) {
+                      ApiService.crearEnvio({
+                        'origen': _prOrigen.text.isNotEmpty ? _prOrigen.text : tipoInfo['nom'] as String,
+                        'destino': _prDestino.text,
+                        'telefono': _prTel.text,
+                        'tipo': _prTipo,
+                        'descripcion': desc,
+                        'total': precio,
+                        'folio': folio,
+                      });
+                    }
                     // Abrir MercadoPago Checkout Pro
                     final ok = await MercadoPagoService.pagarPedido(folio: folio, tipo: _prTipo ?? 'mandado', total: precio, descripcion: desc);
                     if (ok) {
@@ -2794,6 +3651,23 @@ class _MainAppState extends State<MainApp> {
           ]),
         ),
       )),
+      // ── Rastreo por folio ──
+      Container(margin: const EdgeInsets.only(bottom: 10),
+        child: TextField(
+          style: const TextStyle(color: AppTheme.tx, fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'Rastrear folio CGO-...', hintStyle: const TextStyle(color: AppTheme.td, fontSize: 12),
+            prefixIcon: const Icon(Icons.search, color: AppTheme.or, size: 18),
+            suffixIcon: IconButton(icon: const Icon(Icons.send, size: 16, color: AppTheme.ac),
+              onPressed: () { if (_trackFolio.isNotEmpty) _rastrearPedido(_trackFolio); }),
+            filled: true, fillColor: AppTheme.cd,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: AppTheme.bd)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: AppTheme.bd)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.or)),
+            contentPadding: const EdgeInsets.symmetric(vertical: 10)),
+          onChanged: (v) => _trackFolio = v.trim(),
+          onSubmitted: (v) { if (v.trim().isNotEmpty) _rastrearPedido(v.trim()); },
+        )),
       // ── Filter pills (arriba del mapa) ──
       Row(children: [for (var f in [['all','Todos'],['hidalgo','Hidalgo'],['cdmx','CDMX']])
         Expanded(child: GestureDetector(onTap: () => setState(() => _pedFilter = f[0]),
@@ -3060,36 +3934,41 @@ class _MainAppState extends State<MainApp> {
       ]),
     ),
     const SizedBox(height: 8),
-    Container(padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.bd, width: 1.2)),
-      child: Row(children: [
-        const Icon(Icons.phone, size: 20, color: AppTheme.gr),
-        const SizedBox(width: 8),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Cotiza ahora', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
-          Text('Llámanos o envía WhatsApp para agendar', style: TextStyle(fontSize: 10, color: AppTheme.tm)),
-        ])),
-      ]),
-    ),
+    GestureDetector(onTap: () => WhatsappService.cotizarMudanza(tipo: 'mudanza'),
+      child: Container(padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.bd, width: 1.2)),
+        child: Row(children: [
+          const Icon(Icons.phone, size: 20, color: AppTheme.gr),
+          const SizedBox(width: 8),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Cotiza ahora', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
+            Text('Llámanos o envía WhatsApp para agendar', style: TextStyle(fontSize: 10, color: AppTheme.tm)),
+          ])),
+          const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.gr),
+        ]),
+      )),
   ]);
 
-  Widget _mudOption(IconData ic, String title, String desc, String price, Color c) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: c.withOpacity(0.25), width: 1.2)),
-    child: Row(children: [
-      Container(width: 44, height: 44, decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-        child: Icon(ic, size: 24, color: c)),
-      const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c)),
-        Text(desc, style: const TextStyle(fontSize: 10, color: AppTheme.tm)),
-      ])),
-      Column(children: [
-        const Text('Desde', style: TextStyle(fontSize: 8, color: AppTheme.td)),
-        Text(price, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: c)),
+  Widget _mudOption(IconData ic, String title, String desc, String price, Color c) => GestureDetector(
+    onTap: () => WhatsappService.cotizarMudanza(tipo: title),
+    child: Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: c.withOpacity(0.25), width: 1.2)),
+      child: Row(children: [
+        Container(width: 44, height: 44, decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+          child: Icon(ic, size: 24, color: c)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c)),
+          Text(desc, style: const TextStyle(fontSize: 10, color: AppTheme.tm)),
+        ])),
+        Column(children: [
+          const Text('Desde', style: TextStyle(fontSize: 8, color: AppTheme.td)),
+          Text(price, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: c)),
+        ]),
       ]),
-    ]),
+    ),
   );
 
   Widget _mudStep(String num, String title, String desc) => Container(
@@ -3113,6 +3992,84 @@ class _MainAppState extends State<MainApp> {
     Text(n, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.tx)),
     Text('$count negocios', style: const TextStyle(fontSize: 8, color: AppTheme.tm)),
   ]);
+
+  void _showEditProfile() {
+    final nameCtrl = TextEditingController(text: AuthService.currentUser?.displayName ?? 'Chule');
+    final phoneCtrl = TextEditingController(text: AuthService.currentUser?.phoneNumber ?? '');
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: AppTheme.sf,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Editar Perfil', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.tx)),
+          const SizedBox(height: 16),
+          TextField(controller: nameCtrl, style: const TextStyle(color: AppTheme.tx, fontSize: 13),
+            decoration: InputDecoration(labelText: 'Nombre', labelStyle: const TextStyle(color: AppTheme.tm),
+              prefixIcon: const Icon(Icons.person, color: AppTheme.ac, size: 20),
+              filled: true, fillColor: AppTheme.cd,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.bd)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.bd)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.ac)))),
+          const SizedBox(height: 12),
+          TextField(controller: phoneCtrl, style: const TextStyle(color: AppTheme.tx, fontSize: 13),
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(labelText: 'Teléfono', labelStyle: const TextStyle(color: AppTheme.tm),
+              prefixIcon: const Icon(Icons.phone, color: AppTheme.gr, size: 20),
+              filled: true, fillColor: AppTheme.cd,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.bd)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.bd)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.gr)))),
+          const SizedBox(height: 16),
+          SizedBox(width: double.infinity, height: 44, child: ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Perfil actualizado', style: TextStyle(color: Colors.white)),
+                backgroundColor: AppTheme.gr, duration: Duration(seconds: 2)));
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.ac, foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+            child: const Text('Guardar', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)))),
+        ])));
+  }
+
+  void _showSecurity() {
+    final user = AuthService.currentUser;
+    final phone = user?.phoneNumber ?? 'No registrado';
+    final email = user?.email ?? 'No registrado';
+    final provider = user != null ? (user.phoneNumber != null ? 'Teléfono' : 'Google') : 'Invitado';
+    showModalBottomSheet(context: context, backgroundColor: AppTheme.sf,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(padding: const EdgeInsets.all(20),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Seguridad', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.tx)),
+          const SizedBox(height: 16),
+          _secRow(Icons.phone, 'Teléfono', phone),
+          _secRow(Icons.email, 'Email', email),
+          _secRow(Icons.shield, 'Proveedor', provider),
+          _secRow(Icons.access_time, 'Sesión', 'Activa'),
+          const SizedBox(height: 16),
+          SizedBox(width: double.infinity, height: 44, child: OutlinedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              AuthService.signOut();
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+            },
+            style: OutlinedButton.styleFrom(foregroundColor: AppTheme.or,
+              side: const BorderSide(color: AppTheme.or),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            child: const Text('Cambiar método de acceso', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)))),
+        ])));
+  }
+
+  Widget _secRow(IconData icon, String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(children: [
+      Icon(icon, size: 18, color: AppTheme.tm),
+      const SizedBox(width: 10),
+      Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.tm)),
+      const Spacer(),
+      Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.tx)),
+    ]));
 
   // ═══ PERFIL ═══
   Widget _perfScreen() => ListView(padding: const EdgeInsets.all(14), children: [
@@ -3159,15 +4116,24 @@ class _MainAppState extends State<MainApp> {
     const Text('⚙️ Cuenta', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.tx)),
     const SizedBox(height: 8),
     for (var it in ['Editar perfil','Notificaciones','Seguridad','Soporte','Cerrar sesión'])
-      Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: it == 'Cerrar sesión' ? AppTheme.rd.withOpacity(0.25) : AppTheme.bd, width: 1.2)),
-        child: Row(children: [
-          Icon(it == 'Editar perfil' ? Icons.edit : it == 'Notificaciones' ? Icons.notifications : it == 'Seguridad' ? Icons.shield : it == 'Soporte' ? Icons.help : Icons.logout,
-            size: 18, color: it == 'Cerrar sesión' ? AppTheme.rd : AppTheme.tm),
-          const SizedBox(width: 10),
-          Text(it, style: TextStyle(fontSize: 11, color: it == 'Cerrar sesión' ? AppTheme.rd : AppTheme.tx)),
-        ])),
+      GestureDetector(
+        onTap: () {
+          if (it == 'Editar perfil') _showEditProfile();
+          if (it == 'Notificaciones') _showNotifs();
+          if (it == 'Seguridad') _showSecurity();
+          if (it == 'Soporte') WhatsappService.contactarSoporte();
+          if (it == 'Cerrar sesión') { AuthService.signOut(); setState(() {}); }
+        },
+        child: Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: it == 'Cerrar sesión' ? AppTheme.rd.withOpacity(0.25) : AppTheme.bd, width: 1.2)),
+          child: Row(children: [
+            Icon(it == 'Editar perfil' ? Icons.edit : it == 'Notificaciones' ? Icons.notifications : it == 'Seguridad' ? Icons.shield : it == 'Soporte' ? Icons.help : Icons.logout,
+              size: 18, color: it == 'Cerrar sesión' ? AppTheme.rd : AppTheme.tm),
+            const SizedBox(width: 10),
+            Expanded(child: Text(it, style: TextStyle(fontSize: 11, color: it == 'Cerrar sesión' ? AppTheme.rd : AppTheme.tx))),
+            Icon(Icons.arrow_forward_ios, size: 12, color: it == 'Cerrar sesión' ? AppTheme.rd.withOpacity(0.5) : AppTheme.td),
+          ]))),
   ]);
 }
 
