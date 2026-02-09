@@ -2625,29 +2625,33 @@ class _MainAppState extends State<MainApp> {
               final tel = (n['telefono'] ?? '').toString();
               final pedidos = n['pedidos'] ?? 0;
               final plan = (n['plan'] ?? 'gratis').toString();
-              // Plan-based card styling
+              // Plan-based card styling — vivo y distinguible
               final Color borderColor; final double borderWidth; final String? badge;
-              final List<BoxShadow> cardShadows;
+              final List<BoxShadow> cardShadows; final Color cardBg;
               switch (plan) {
                 case 'vip':
-                  borderColor = const Color(0xFFFFD700); borderWidth = 2.0; badge = 'VIP';
-                  cardShadows = [BoxShadow(color: const Color(0xFFFFD700).withOpacity(0.2), blurRadius: 12, spreadRadius: 1)];
+                  borderColor = const Color(0xFFFFD700); borderWidth = 2.5; badge = 'VIP';
+                  cardBg = const Color(0xFF1A1400);
+                  cardShadows = [BoxShadow(color: const Color(0xFFFFD700).withOpacity(0.35), blurRadius: 16, spreadRadius: 2)];
                 case 'premium':
-                  borderColor = const Color(0xFFFFA502); borderWidth = 1.5; badge = 'PREMIUM';
-                  cardShadows = [BoxShadow(color: const Color(0xFFFFA502).withOpacity(0.15), blurRadius: 8)];
+                  borderColor = const Color(0xFFFFA502); borderWidth = 2.0; badge = 'PREMIUM';
+                  cardBg = const Color(0xFF1A1000);
+                  cardShadows = [BoxShadow(color: const Color(0xFFFFA502).withOpacity(0.25), blurRadius: 12, spreadRadius: 1)];
                 case 'basico':
-                  borderColor = c; borderWidth = 1.2; badge = null;
-                  cardShadows = [];
+                  borderColor = c; borderWidth = 1.5; badge = 'BASICO';
+                  cardBg = AppTheme.cd;
+                  cardShadows = [BoxShadow(color: c.withOpacity(0.15), blurRadius: 8)];
                 default:
-                  borderColor = const Color(0xFF506080); borderWidth = 0.8; badge = null;
+                  borderColor = const Color(0xFF3A4A60); borderWidth = 0.8; badge = null;
+                  cardBg = Colors.transparent;
                   cardShadows = [];
               }
               final previewItems = (plan == 'vip' && n['productos_preview'] is List) ? (n['productos_preview'] as List).take(3).toList() : [];
               return GestureDetector(
                 onTap: plan == 'vip' ? () => setState(() => _menuScreen = 'vip_${n['id']}') : null,
                 child: Container(decoration: BoxDecoration(
-                color: Colors.transparent, borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: borderColor.withOpacity(plan == 'gratis' ? 0.2 : 0.5), width: borderWidth),
+                color: cardBg, borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: borderColor, width: borderWidth),
                 boxShadow: cardShadows),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   // Foto + badge + edit button
@@ -2669,10 +2673,16 @@ class _MainAppState extends State<MainApp> {
                       decoration: BoxDecoration(
                         gradient: plan == 'vip'
                           ? const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFFA000)])
-                          : const LinearGradient(colors: [Color(0xFFFFA502), Color(0xFFFF8C00)]),
+                          : plan == 'premium'
+                            ? const LinearGradient(colors: [Color(0xFFFFA502), Color(0xFFFF8C00)])
+                            : LinearGradient(colors: [c, c.withOpacity(0.8)]),
                         borderRadius: BorderRadius.circular(8),
-                        boxShadow: [BoxShadow(color: borderColor.withOpacity(0.4), blurRadius: 6)]),
-                      child: Text(badge, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1)))),
+                        boxShadow: [BoxShadow(color: borderColor.withOpacity(0.5), blurRadius: 8)]),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        if (plan == 'vip') const Text('👑 ', style: TextStyle(fontSize: 9)),
+                        if (plan == 'premium') const Text('⭐ ', style: TextStyle(fontSize: 9)),
+                        Text(badge, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1)),
+                      ]))),
                   ]),
                   // Info
                   Expanded(child: Padding(padding: const EdgeInsets.fromLTRB(10, 8, 10, 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
