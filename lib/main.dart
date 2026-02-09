@@ -218,10 +218,11 @@ final List<FarmItem> farmacia = [
 
 // ═══ 100 NEGOCIOS ═══
 final List<Negocio> negHidalgo = [
-  Negocio(id:"h01",nom:"Farmacias Madrid - Matriz",e:"💊",zona:"Av. Juárez 102, Centro, Tulancingo",desc:"Sucursal principal · 77K+ productos",r:4.8,ped:1240,c:AppTheme.gr,menu:"farmacia",tipo:"farmacia",horario:"7:00–23:00",tel:"7751234567"),
-  Negocio(id:"h01b",nom:"Farmacias Madrid - Suc. Catedral",e:"💊",zona:"21 de Marzo 45, Centro, Tulancingo",desc:"Frente a la Catedral · medicamentos 24hrs",r:4.7,ped:980,c:AppTheme.gr,menu:"farmacia",tipo:"farmacia",horario:"24 horas",tel:"7751234568"),
-  Negocio(id:"h01c",nom:"Farmacias Madrid - Suc. Floresta",e:"💊",zona:"Blvd. La Floresta 210, Tulancingo",desc:"Zona La Floresta · servicio a domicilio",r:4.6,ped:720,c:AppTheme.gr,menu:"farmacia",tipo:"farmacia",horario:"8:00–22:00",tel:"7751234569"),
-  Negocio(id:"h01d",nom:"Farmacias Madrid - Suc. Torres",e:"💊",zona:"Av. Las Torres 88, Tulancingo",desc:"Junto a plaza comercial · laboratorio",r:4.7,ped:860,c:AppTheme.gr,menu:"farmacia",tipo:"farmacia",horario:"8:00–22:00",tel:"7751234570"),
+  Negocio(id:"h01",nom:"Farmacias Madrid - Panteón",e:"💊",zona:"Calz. Hidalgo 1311, Tulancingo",desc:"Medicamentos genéricos, patente y hospitalarios · Servicio a domicilio",r:4.8,ped:1240,c:AppTheme.gr,menu:"farmacia",tipo:"farmacia",horario:"8:00–22:00",tel:"7753496000"),
+  Negocio(id:"h01b",nom:"Farmacias Madrid - Lázaro",e:"💊",zona:"Gral. L. Cárdenas 107, Tulancingo",desc:"Medicamentos genéricos, patente y hospitalarios · Servicio a domicilio",r:4.8,ped:980,c:AppTheme.gr,menu:"farmacia",tipo:"farmacia",horario:"8:00–22:00",tel:"7753496000"),
+  Negocio(id:"h01c",nom:"Farmacias Madrid - 21 de Marzo",e:"💊",zona:"21 de Marzo Nte. 406, Tulancingo",desc:"Medicamentos genéricos, patente y hospitalarios · Servicio a domicilio",r:4.8,ped:720,c:AppTheme.gr,menu:"farmacia",tipo:"farmacia",horario:"8:00–22:00",tel:"7753496000"),
+  Negocio(id:"h01d",nom:"Farmacias Madrid - Santa María",e:"💊",zona:"C. Jazmín 64, Col. Santa María, Tulancingo",desc:"Medicamentos genéricos, patente y hospitalarios · Servicio a domicilio",r:4.8,ped:860,c:AppTheme.gr,menu:"farmacia",tipo:"farmacia",horario:"8:00–22:00",tel:"7753496000"),
+  Negocio(id:"h01e",nom:"Farmacias Madrid - Caballito",e:"💊",zona:"21 de Marzo, Caballito, Tulancingo",desc:"Medicamentos genéricos, patente y hospitalarios · Servicio a domicilio",r:4.8,ped:650,c:AppTheme.gr,menu:"farmacia",tipo:"farmacia",horario:"8:00–22:00",tel:"7753496000"),
   Negocio(id:"h02",nom:"Mamá Chela",e:"🍲",zona:"Centro, Tulancingo",desc:"Comida casera hidalguense",r:4.9,ped:890,c:AppTheme.or,menu:"mama",tipo:"comida",horario:"9:00–18:00",tel:"7759876543"),
   Negocio(id:"h03",nom:"Dulce María",e:"🧁",zona:"La Floresta, Tulancingo",desc:"Postres artesanales mexicanos",r:4.7,ped:650,c:AppTheme.pk,menu:"dulce",tipo:"postres",horario:"10:00–20:00",tel:"7751112233"),
   Negocio(id:"h04",nom:"Tacos El Güero",e:"🌮",zona:"Centro, Tulancingo",desc:"Tacos al pastor y suadero",r:4.6,ped:1100,c:AppTheme.rd,tipo:"comida",horario:"18:00–02:00",tel:"7754445566"),
@@ -340,10 +341,11 @@ final List<Negocio> negCdmx = [
 // ═══ COORDENADAS REALES DE TODOS LOS NEGOCIOS ═══
 const _negCoords = <String, List<double>>{
   // ── Hidalgo (Tulancingo ~20.08, -98.38) ──
-  'h01': [20.0841, -98.3619], // Farmacias Madrid Matriz - Av. Juárez, Centro
-  'h01b': [20.0833, -98.3601], // Farmacias Madrid Suc. Catedral - 21 de Marzo
-  'h01c': [20.0785, -98.3560], // Farmacias Madrid Suc. Floresta
-  'h01d': [20.0910, -98.3700], // Farmacias Madrid Suc. Torres
+  'h01': [20.0756833, -98.3584392], // Farmacias Madrid Panteón - Calz. Hidalgo 1311
+  'h01b': [20.0776454, -98.3714904], // Farmacias Madrid Lázaro - Gral. L. Cárdenas 107
+  'h01c': [20.0846106, -98.3657675], // Farmacias Madrid 21 de Marzo - 21 de Marzo Nte. 406
+  'h01d': [20.0937157, -98.3667885], // Farmacias Madrid Santa María - C. Jazmín 64
+  'h01e': [20.0884699, -98.3632441], // Farmacias Madrid Caballito - 21 de Marzo
   'h02': [20.0838, -98.3808], // Mamá Chela - Centro
   'h03': [20.0780, -98.3730], // Dulce María - La Floresta
   'h04': [20.0850, -98.3825], // Tacos El Güero - Centro
@@ -2625,6 +2627,8 @@ class _MainAppState extends State<MainApp> {
               final tel = (n['telefono'] ?? '').toString();
               final pedidos = n['pedidos'] ?? 0;
               final plan = (n['plan'] ?? 'gratis').toString();
+              final logoUrl = (n['logo_url'] ?? '').toString();
+              final hasLogo = logoUrl.isNotEmpty;
               // Plan-based card styling — vivo y distinguible
               final Color borderColor; final double borderWidth; final String? badge;
               final List<BoxShadow> cardShadows; final Color cardBg;
@@ -2687,6 +2691,12 @@ class _MainAppState extends State<MainApp> {
                   // Info
                   Expanded(child: Padding(padding: const EdgeInsets.fromLTRB(10, 8, 10, 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
+                      if (hasLogo) ...[
+                        Container(width: 22, height: 22,
+                          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: borderColor, width: 1.2),
+                            image: DecorationImage(image: NetworkImage(logoUrl), fit: BoxFit.cover))),
+                        const SizedBox(width: 5),
+                      ],
                       Expanded(child: Text(nombre, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.tx), maxLines: 1, overflow: TextOverflow.ellipsis)),
                       Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(color: AppTheme.or.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
