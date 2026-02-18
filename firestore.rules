@@ -1,58 +1,122 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Negocios: lectura pública, escritura autenticada
+
+    // ══ DEFAULT: deny all ══
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ══ NEGOCIOS: public read, owner/admin write ══
     match /negocios/{negocioId} {
       allow read;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null
+        && (request.auth.uid == resource.data.ownerId
+        || request.auth.token.admin == true);
+      // Allow create for new negocios (onboarding)
+      allow create: if request.auth != null;
 
-      // Productos subcollection: lectura pública, escritura autenticada
+      // Productos subcollection
       match /productos/{productoId} {
         allow read;
-        allow write: if request.auth != null;
+        allow write: if request.auth != null
+          && request.auth.uid == get(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerId
+          || request.auth.token.admin == true;
       }
     }
 
-    // Negocio usuarios: solo lectura para login (query por telefono+hash)
+    // ══ NEGOCIO USUARIOS: login queries ══
     match /negocio_usuarios/{userId} {
       allow read;
       allow create;
       allow update: if request.auth != null;
     }
 
-    // Pedidos: crear público (cliente sin login), leer/actualizar autenticado
+    // ══ PEDIDOS: create public, read/update restricted ══
     match /pedidos/{pedidoId} {
       allow create;
       allow read;
       allow update: if request.auth != null;
+      allow delete: if false;
+
+      // Chat subcollection
+      match /chat/{msgId} {
+        allow read;
+        allow create;
+      }
     }
 
-    // Counters: para numeración de pedidos
+    // ══ COUNTERS: for order numbering ══
     match /counters/{counterId} {
       allow read, write;
     }
 
-    // Farmacia productos: lectura pública
+    // ══ FARMACIA PRODUCTOS: public catalog ══
     match /farmacia_productos/{productoId} {
       allow read;
       allow write: if request.auth != null;
     }
 
-    // Pedidos CRUDO: escritura pública para pedidos, lectura autenticada
+    // ══ CALIFICACIONES: public read, authenticated create, no edit/delete ══
+    match /calificaciones/{calId} {
+      allow read;
+      allow create;
+      allow update, delete: if false;
+    }
+
+    // ══ CUPONES: public read, admin write ══
+    match /cupones/{cuponId} {
+      allow read;
+      allow write: if request.auth != null
+        && request.auth.token.admin == true;
+    }
+
+    // ══ NEGOCIOS PROPUESTOS: public create, admin manage ══
+    match /negocios_propuestos/{propId} {
+      allow read;
+      allow create;
+      allow update, delete: if request.auth != null
+        && request.auth.token.admin == true;
+    }
+
+    // ══ FRANQUICIA SOLICITUDES: public create, admin manage ══
+    match /franquicia_solicitudes/{solId} {
+      allow read: if request.auth != null
+        && request.auth.token.admin == true;
+      allow create;
+      allow update, delete: if request.auth != null
+        && request.auth.token.admin == true;
+    }
+
+    // ══ TICKETS: owner + admin read, admin write ══
+    match /tickets/{ticketId} {
+      allow read;
+      allow write: if request.auth != null;
+      allow delete: if false;
+    }
+
+    // ══ REPARTIDORES: self + admin ══
+    match /repartidores/{repartidorId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // ══ ADMIN / SUDO: only admin ══
+    match /admin/{document=**} {
+      allow read, write: if request.auth != null
+        && request.auth.token.admin == true;
+    }
+
+    // ══ CRUDO PEDIDOS ══
     match /crudo_pedidos/{pedidoId} {
       allow create;
       allow read: if request.auth != null;
     }
 
-    // Pedidos Sharazan: escritura pública, lectura autenticada
+    // ══ SHARAZAN PEDIDOS ══
     match /sharazan_pedidos/{pedidoId} {
       allow create;
       allow read: if request.auth != null;
-    }
-
-    // Denegar todo lo demás por defecto
-    match /{document=**} {
-      allow read, write: if false;
     }
   }
 }

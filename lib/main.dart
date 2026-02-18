@@ -33,6 +33,7 @@ import 'screens/cliente/referidos_screen.dart';
 import 'screens/cliente/proponer_negocio_screen.dart';
 import 'screens/cliente/onboarding_screen.dart';
 import 'screens/cliente/franquicias_screen.dart';
+import 'screens/cliente/privacidad_screen.dart';
 
 class AppTheme {
   static const bg = Color(0xFF060B18);
@@ -7260,6 +7261,9 @@ class _MainAppState extends State<MainApp> {
     // ── Franquicias ──
     _profileServiceBtn(icon: Icons.rocket_launch, label: 'Franquicias Cargo-GO', desc: 'Lleva Cargo-GO a tu ciudad', color: AppTheme.pu,
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FranquiciasScreen()))),
+    // ── Privacidad ──
+    _profileServiceBtn(icon: Icons.lock, label: 'Aviso de Privacidad', desc: 'Tus datos protegidos (LFPDPPP)', color: AppTheme.cy,
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacidadScreen()))),
     // ── Cotizador ──
     GestureDetector(onTap: () => setState(() => _menuScreen = 'cotizador'),
       child: Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(14),
