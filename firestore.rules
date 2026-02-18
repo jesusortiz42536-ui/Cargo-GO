@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Negocios: lectura pública, escritura autenticada
+    match /negocios/{negocioId} {
+      allow read;
+      allow write: if request.auth != null;
+
+      // Productos subcollection: lectura pública, escritura autenticada
+      match /productos/{productoId} {
+        allow read;
+        allow write: if request.auth != null;
+      }
+    }
+
+    // Negocio usuarios: solo lectura para login (query por telefono+hash)
+    match /negocio_usuarios/{userId} {
+      allow read;
+      allow create;
+      allow update: if request.auth != null;
+    }
+
+    // Pedidos: crear público (cliente sin login), leer/actualizar autenticado
+    match /pedidos/{pedidoId} {
+      allow create;
+      allow read;
+      allow update: if request.auth != null;
+    }
+
+    // Counters: para numeración de pedidos
+    match /counters/{counterId} {
+      allow read, write;
+    }
+
+    // Farmacia productos: lectura pública
+    match /farmacia_productos/{productoId} {
+      allow read;
+      allow write: if request.auth != null;
+    }
+
+    // Pedidos CRUDO: escritura pública para pedidos, lectura autenticada
+    match /crudo_pedidos/{pedidoId} {
+      allow create;
+      allow read: if request.auth != null;
+    }
+
+    // Pedidos Sharazan: escritura pública, lectura autenticada
+    match /sharazan_pedidos/{pedidoId} {
+      allow create;
+      allow read: if request.auth != null;
+    }
+
+    // Denegar todo lo demás por defecto
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

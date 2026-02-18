@@ -1,0 +1,14 @@
+{
+  "name": "farmacias-madrid-functions",
+  "description": "Cloud Functions para Farmacias Madrid - Mercado Pago",
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "firebase-functions": "^5.0.0",
+    "mercadopago": "^2.0.15",
+    "cors": "^2.8.5"
+  }
+}

@@ -5,10 +5,10 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   // ═══ BASE URLs ═══
-  // Puerto 5001 = Cargo-GO API (negocios, farmacia, envios, marketplace)
-  // Puerto 5000 = Repartidores API (entregas, drivers, tracking)
-  static String _baseUrl = 'http://192.168.0.103:5001';
-  static String _repartidoresUrl = 'http://192.168.0.103:5000';
+  // All APIs now route through Firebase Cloud Functions
+  static const _cloudBase = 'https://us-central1-cargo-go-b5f77.cloudfunctions.net/cargoApi';
+  static String _baseUrl = _cloudBase;
+  static String _repartidoresUrl = _cloudBase;
 
   static String get baseUrl => _baseUrl;
   static set baseUrl(String url) => _baseUrl = url.replaceAll(RegExp(r'/$'), '');
@@ -126,38 +126,37 @@ class ApiService {
   static Future<Map<String, dynamic>?> detectarZona(String cp) =>
       _get('/api/detectar-zona/$cp');
 
-  // ═══ REPARTIDORES API (Port 5000) ═══
+  // ═══ REPARTIDORES API ═══
   static Future<List<Map<String, dynamic>>> getEntregas({String? estado, String? repartidorId}) async {
     String query = '/api/entregas';
     final params = <String>[];
     if (estado != null && estado.isNotEmpty) params.add('estado=$estado');
     if (repartidorId != null) params.add('repartidor_id=$repartidorId');
     if (params.isNotEmpty) query += '?${params.join('&')}';
-    final res = await _get(query, useRepartidores: true);
+    final res = await _get(query);
     if (res != null && res.containsKey('data')) {
       return List<Map<String, dynamic>>.from(res['data']);
     }
     if (res != null && !res.containsKey('error')) {
-      // Some APIs return list directly
       if (res.containsKey('entregas')) return List<Map<String, dynamic>>.from(res['entregas']);
     }
     return [];
   }
 
   static Future<Map<String, dynamic>?> getEntrega(int id) =>
-      _get('/api/entregas/$id', useRepartidores: true);
+      _get('/api/entregas/$id');
 
   static Future<Map<String, dynamic>?> iniciarEntrega(int id) =>
-      _post('/api/entregas/$id/iniciar', {}, useRepartidores: true);
+      _post('/api/entregas/$id/iniciar', {});
 
   static Future<Map<String, dynamic>?> completarEntrega(int id) =>
-      _post('/api/entregas/$id/completar', {}, useRepartidores: true);
+      _post('/api/entregas/$id/completar', {});
 
   static Future<Map<String, dynamic>?> getRepartidor(int id) =>
-      _get('/api/repartidor/$id', useRepartidores: true);
+      _get('/api/repartidor/$id');
 
   static Future<Map<String, dynamic>?> getRepartidorStats(int repartidorId) =>
-      _get('/api/stats/$repartidorId', useRepartidores: true);
+      _get('/api/stats/$repartidorId');
 
   static Future<List<Map<String, dynamic>>> getRepartidores() async {
     final res = await _get('/api/repartidores');
@@ -260,14 +259,14 @@ class ApiService {
 
   static Future<bool> isRepartidoresOnline() async {
     try {
-      final res = await _get('/api/entregas', useRepartidores: true);
+      final res = await _get('/api/entregas');
       return res != null && !res.containsKey('error');
     } catch (_) {
       return false;
     }
   }
 
-  // ═══ FULL HEALTH CHECK (both APIs) ═══
+  // ═══ FULL HEALTH CHECK ═══
   static Future<Map<String, bool>> checkAllServices() async {
     final results = await Future.wait([
       isOnline(),

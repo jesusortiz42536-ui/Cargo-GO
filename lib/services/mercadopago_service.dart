@@ -6,9 +6,9 @@ import 'package:url_launcher/url_launcher.dart';
 /// MercadoPago Checkout Pro - Sandbox Integration
 /// Crea preferencias de pago y redirige al checkout de MercadoPago.
 class MercadoPagoService {
-  // ═══ CREDENCIALES SANDBOX ═══
-  static const publicKey = 'APP_USR-c4f9d601-6760-4abf-bad4-1e0d8b928f91';
-  static const _accessToken = 'APP_USR-2567177952927542-020722-4f0c4729c8db104679498a23308e4ebb-428476282';
+  // ═══ CREDENCIALES PRODUCCIÓN ═══
+  static const publicKey = 'APP_USR-1944384961399129-020805';
+  static const _accessToken = 'APP_USR-1944384961399129-020805-fdfa75cab7f7b2d45ab664f6ce070e0a-3008510285';
   static const _apiBase = 'https://api.mercadopago.com';
   static const _backUrl = 'https://cargo-go-b5f77.web.app';
 
@@ -59,8 +59,8 @@ class MercadoPagoService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
-        // Sandbox usa sandbox_init_point, producción usa init_point
-        final checkoutUrl = data['sandbox_init_point'] ?? data['init_point'];
+        // Producción usa init_point
+        final checkoutUrl = data['init_point'] ?? data['sandbox_init_point'];
         if (checkoutUrl != null) {
           final uri = Uri.parse(checkoutUrl);
           await launchUrl(uri, mode: LaunchMode.externalApplication);

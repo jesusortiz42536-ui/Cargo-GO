@@ -1,4 +1,15 @@
 {
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20"
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "flutter": {
     "platforms": {
       "android": {
@@ -29,7 +40,53 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "headers": [
+      {
+        "source": "index.html",
+        "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+      },
+      {
+        "source": "flutter_service_worker.js",
+        "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+      },
+      {
+        "source": "main.dart.js",
+        "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+      },
+      {
+        "source": "sharazan.html",
+        "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+      },
+      {
+        "source": "crudo.html",
+        "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+      },
+      {
+        "source": "pilingas.html",
+        "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+      },
+      {
+        "source": "farmacias_madrid.html",
+        "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+      }
+    ],
     "rewrites": [
+      {
+        "source": "sharazan.html",
+        "destination": "/sharazan.html"
+      },
+      {
+        "source": "crudo.html",
+        "destination": "/crudo.html"
+      },
+      {
+        "source": "pilingas.html",
+        "destination": "/pilingas.html"
+      },
+      {
+        "source": "farmacias_madrid.html",
+        "destination": "/farmacias_madrid.html"
+      },
       {
         "source": "**",
         "destination": "/index.html"

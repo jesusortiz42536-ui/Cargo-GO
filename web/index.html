@@ -18,12 +18,12 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Cargo-GO · Movemos la ciudad por ti · Envíos, mandados y paquetería CDMX-Hidalgo">
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="cargo_go">
+  <meta name="apple-mobile-web-app-title" content="Cargo-GO">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Google Sign-In -->
@@ -32,12 +32,12 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>cargo_go</title>
+  <title>Cargo-GO</title>
   <link rel="manifest" href="manifest.json">
 
   <script>
     // The value below is injected by flutter build, do not touch.
-    const serviceWorkerVersion = null;
+    var serviceWorkerVersion = '{{flutter_service_worker_version}}';
   </script>
   <!-- Google Maps JavaScript API -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD37YdGfyW3DFpQl6v48mLfGrjBds78iOI"></script>
@@ -47,13 +47,12 @@
 <body>
   <script>
     window.addEventListener('load', function(ev) {
-      // Download main.dart.js
       _flutter.loader.loadEntrypoint({
         serviceWorker: {
           serviceWorkerVersion: serviceWorkerVersion,
         },
         onEntrypointLoaded: function(engineInitializer) {
-          engineInitializer.initializeEngine().then(function(appRunner) {
+          engineInitializer.initializeEngine({renderer: "html"}).then(function(appRunner) {
             appRunner.runApp();
           });
         }
